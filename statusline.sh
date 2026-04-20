@@ -1,13 +1,27 @@
 #!/bin/bash
 
 # Claude Code Statusline - Informative status bar for Claude Code CLI
-# https://github.com/kalmarr-dev/claude-code-statusline
+# https://github.com/kalmarr/claude-code-statusline
 #
-# Shows: Model, Cost, Context Window, Duration, API Calls, Fast Mode,
-#        Lines Changed, Git Branch, Project Folder
+# Shows: Model, Permission Mode, Cost, Context Window, Duration, API Calls,
+#        Fast Mode, Lines Changed, Git Branch, Project Folder, and more.
+#
+# Config via env vars:
+#   DEBUG=1                       Save raw JSON input to ~/.claude/debug_status.json
+#   STATUSLINE_PROFILE=minimal    Only permission mode + base fields
+#   STATUSLINE_PROFILE=standard   + output_style, agent, session_name
+#   STATUSLINE_PROFILE=full       + rate_limits, worktree, vim, exceeds_200k (default)
+#   STATUSLINE_LAYOUT=1           Single line (default)
+#   STATUSLINE_LAYOUT=2           Two lines: identity row + metrics row
 
 # Force C locale for consistent number formatting
 export LC_ALL=C
+
+# Feature profile (minimal | standard | full)
+STATUSLINE_PROFILE="${STATUSLINE_PROFILE:-full}"
+
+# Layout: 1 = single line (default), 2 = two lines
+STATUSLINE_LAYOUT="${STATUSLINE_LAYOUT:-1}"
 
 data=$(cat)
 
@@ -22,10 +36,18 @@ eval "$(echo "$data" | jq -r '
   @sh "duration_ms=\(.cost.total_duration_ms // 0)",
   @sh "lines_added=\(.cost.total_lines_added // 0)",
   @sh "lines_removed=\(.cost.total_lines_removed // 0)",
-  @sh "ctx_pct=\(.context_window.used_percentage // 0)",
+  @sh "ctx_pct=\(.context_window.used_percentage // 0 | floor)",
   @sh "ctx_size=\(.context_window.context_window_size // 200000)",
   @sh "cwd=\(.workspace.current_dir // "")",
-  @sh "transcript=\(.transcript_path // "")"
+  @sh "transcript=\(.transcript_path // "")",
+  @sh "output_style=\(.output_style.name // "default")",
+  @sh "agent_name=\(.agent.name // "")",
+  @sh "session_name=\(.session_name // "")",
+  @sh "worktree_name=\(.worktree.name // .workspace.git_worktree // "")",
+  @sh "vim_mode=\(.vim.mode // "")",
+  @sh "exceeds_200k=\(.exceeds_200k_tokens // false)",
+  @sh "rate_5h=\(.rate_limits.five_hour.used_percentage // "")",
+  @sh "rate_7d=\(.rate_limits.seven_day.used_percentage // "")"
 ')"
 
 # === PROJECT FOLDER ===
@@ -41,8 +63,12 @@ ctx_size=${ctx_size:-200000}
 # Cap percentage at 100
 [ "$ctx_pct" -gt 100 ] && ctx_pct=100
 
-# Colored progress bar (20 chars)
-bar_len=20
+# Colored progress bar (10 chars in minimal profile, 20 chars otherwise)
+if [ "$STATUSLINE_PROFILE" = "minimal" ]; then
+    bar_len=10
+else
+    bar_len=20
+fi
 filled=$((ctx_pct * bar_len / 100))
 empty=$((bar_len - filled))
 
@@ -59,11 +85,15 @@ for ((i=0; i<filled; i++)); do bar+="█"; done
 for ((i=0; i<empty; i++)); do bar+="░"; done
 bar+="]\033[0m"
 
-# Format token counts as Xk (derive current usage from percentage, not cumulative totals)
-ctx_used=$((ctx_pct * ctx_size / 100))
-ctx_used_k=$((ctx_used / 1000))
-ctx_size_k=$((ctx_size / 1000))
-tokens_info=$(printf "%b %d%% (%dk/%dk)" "$bar" "$ctx_pct" "$ctx_used_k" "$ctx_size_k")
+# Format token counts. In minimal profile we drop the "(Xk/Xk)" detail for compactness.
+if [ "$STATUSLINE_PROFILE" = "minimal" ]; then
+    tokens_info=$(printf "%b %d%%" "$bar" "$ctx_pct")
+else
+    ctx_used=$((ctx_pct * ctx_size / 100))
+    ctx_used_k=$((ctx_used / 1000))
+    ctx_size_k=$((ctx_size / 1000))
+    tokens_info=$(printf "%b %d%% (%dk/%dk)" "$bar" "$ctx_pct" "$ctx_used_k" "$ctx_size_k")
+fi
 
 # === SESSION DURATION ===
 duration_ms=${duration_ms:-0}
@@ -80,9 +110,10 @@ else
     duration_str="⏱ ${total_secs}s"
 fi
 
-# === TRANSCRIPT DATA (API calls + Fast mode) ===
+# === TRANSCRIPT DATA (API calls + Fast mode + Permission mode) ===
 api_info=""
 speed_info=""
+perm_info=""
 if [ -f "$transcript" ]; then
     api_count=$(grep -c '"type":"assistant"' "$transcript" 2>/dev/null)
     api_count=${api_count:-0}
@@ -103,6 +134,19 @@ if [ -f "$transcript" ]; then
             speed_info="\033[90mSTD\033[0m"
         fi
     fi
+
+    # Permission mode: stdin JSON doesn't carry it, so read the last change
+    # from the transcript. Claude Code logs both "plan" entries and the
+    # subsequent "auto" entry after ExitPlanMode, so the tail of the file
+    # reflects the true current mode.
+    perm_mode=$(tac "$transcript" | grep -m1 -oP '"permissionMode":"\K[^"]*' 2>/dev/null)
+    case "$perm_mode" in
+        plan)              perm_info="\033[33m📋 PLAN\033[0m" ;;
+        auto)              perm_info="\033[34m🚀 AUTO\033[0m" ;;
+        acceptEdits)       perm_info="\033[36m✅ EDIT\033[0m" ;;
+        bypassPermissions) perm_info="\033[31m⚠️  YOLO\033[0m" ;;
+        *)                 perm_info="" ;;  # default / unknown → silent
+    esac
 fi
 
 # === LINES ADDED/REMOVED ===
@@ -125,16 +169,81 @@ if [ -n "$cwd" ] && { [ -d "$cwd/.git" ] || git -C "$cwd" rev-parse --git-dir >/
     fi
 fi
 
+# === PROFILE-GATED EXTRAS ===
+style_info=""
+agent_info=""
+sess_info=""
+wt_info=""
+vim_info=""
+warn_info=""
+rate_info=""
+
+if [ "$STATUSLINE_PROFILE" = "standard" ] || [ "$STATUSLINE_PROFILE" = "full" ]; then
+    [ "$output_style" != "default" ] && [ -n "$output_style" ] && style_info="🎨 ${output_style}"
+    [ -n "$agent_name" ]    && agent_info="🤝 ${agent_name}"
+    [ -n "$session_name" ]  && sess_info="📛 ${session_name}"
+fi
+
+if [ "$STATUSLINE_PROFILE" = "full" ]; then
+    [ -n "$worktree_name" ] && wt_info="🌳 ${worktree_name}"
+    [ -n "$vim_mode" ]      && vim_info="⌨ ${vim_mode}"
+    [ "$exceeds_200k" = "true" ] && warn_info="\033[31m⚠️  200k+\033[0m"
+
+    rl_parts=""
+    [ -n "$rate_5h" ] && rl_parts="5h:$(printf '%.0f' "$rate_5h")%"
+    [ -n "$rate_7d" ] && rl_parts="${rl_parts:+$rl_parts }7d:$(printf '%.0f' "$rate_7d")%"
+    [ -n "$rl_parts" ] && rate_info="📊 ${rl_parts}"
+fi
+
 # === OUTPUT ===
-output="🤖 ${model}"
 
-# Append fast mode indicator right after model name
-[ -n "$speed_info" ] && output="${output} ${speed_info}"
+if [ "$STATUSLINE_PROFILE" = "minimal" ]; then
+    # Compact single line: model + permission mode + cost + bar% + duration + git + folder.
+    # Drop speed (FAST/STD), API count, line diff, and token detail for space.
+    # LAYOUT=2 is ignored here — minimal is always one line by design.
+    output="🤖 ${model}"
+    [ -n "$perm_info" ] && output="${output} ${perm_info}"
+    output="${output} │ ${cost_formatted} │ ${tokens_info} │ ${duration_str}"
+    output="${output} │ 🌿 ${git_info} │ 📁 ${project_dir}"
+    printf "%b" "$output"
+elif [ "$STATUSLINE_LAYOUT" = "2" ]; then
+    # Two-line layout — identity on row 1, metrics on row 2.
+    row1="🤖 ${model}"
+    [ -n "$speed_info" ] && row1="${row1} ${speed_info}"
+    [ -n "$perm_info" ]  && row1="${row1} ${perm_info}"
+    [ -n "$style_info" ] && row1="${row1} │ ${style_info}"
+    [ -n "$agent_info" ] && row1="${row1} │ ${agent_info}"
+    [ -n "$sess_info" ]  && row1="${row1} │ ${sess_info}"
+    row1="${row1} │ 🌿 ${git_info} │ 📁 ${project_dir}"
+    [ -n "$wt_info" ]    && row1="${row1} │ ${wt_info}"
+    [ -n "$vim_info" ]   && row1="${row1} │ ${vim_info}"
 
-output="${output} │ ${cost_formatted} │ ${tokens_info} │ ${duration_str}"
+    row2="${cost_formatted} │ ${tokens_info} │ ${duration_str}"
+    [ -n "$api_info" ]   && row2="${row2} │ ${api_info}"
+    [ -n "$rate_info" ]  && row2="${row2} │ ${rate_info}"
+    [ -n "$warn_info" ]  && row2="${row2} │ ${warn_info}"
+    row2="${row2} │ ${lines_info}"
 
-[ -n "$api_info" ] && output="${output} │ ${api_info}"
+    printf "%b\n%b" "$row1" "$row2"
+else
+    # Single-line layout (default, backward-compatible)
+    output="🤖 ${model}"
+    [ -n "$speed_info" ] && output="${output} ${speed_info}"
+    [ -n "$perm_info" ]  && output="${output} ${perm_info}"
+    [ -n "$style_info" ] && output="${output} │ ${style_info}"
+    [ -n "$agent_info" ] && output="${output} │ ${agent_info}"
+    [ -n "$sess_info" ]  && output="${output} │ ${sess_info}"
+    [ -n "$warn_info" ]  && output="${output} │ ${warn_info}"
 
-output="${output} │ ${lines_info} │ 🌿 ${git_info} │ 📁 ${project_dir}"
+    output="${output} │ ${cost_formatted} │ ${tokens_info} │ ${duration_str}"
 
-printf "%b" "$output"
+    [ -n "$api_info" ]  && output="${output} │ ${api_info}"
+    [ -n "$rate_info" ] && output="${output} │ ${rate_info}"
+
+    output="${output} │ ${lines_info} │ 🌿 ${git_info} │ 📁 ${project_dir}"
+
+    [ -n "$wt_info" ]  && output="${output} │ ${wt_info}"
+    [ -n "$vim_info" ] && output="${output} │ ${vim_info}"
+
+    printf "%b" "$output"
+fi

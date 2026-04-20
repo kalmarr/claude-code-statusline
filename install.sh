@@ -58,6 +58,24 @@ fi
 chmod +x "$TARGET_SCRIPT"
 echo "[OK] Made executable"
 
+# Ask for layout (default: two lines) — skip when stdin is not a tty (non-interactive install)
+echo ""
+if [ -t 0 ]; then
+    read -rp "Enable two-line layout? (recommended, fits wider info without wrapping) [Y/n] " layout_answer
+else
+    layout_answer="y"
+fi
+if [[ "$layout_answer" =~ ^[Nn]$ ]]; then
+    STATUSLINE_CMD="~/.claude/statusline.sh"
+else
+    STATUSLINE_CMD="STATUSLINE_LAYOUT=2 ~/.claude/statusline.sh"
+fi
+
+# Build the statusLine config object
+STATUSLINE_JSON=$(jq -n \
+    --arg cmd "$STATUSLINE_CMD" \
+    '{type: "command", command: $cmd, padding: 0, refreshInterval: 2}')
+
 # Configure settings.json
 if [ -f "$SETTINGS_FILE" ]; then
     # Check if statusLine is already configured
@@ -66,21 +84,38 @@ if [ -f "$SETTINGS_FILE" ]; then
         echo "[INFO] statusLine is already configured in $SETTINGS_FILE:"
         jq '.statusLine' "$SETTINGS_FILE"
         echo ""
-        echo "No changes made to settings. Edit manually if needed."
+        if [ -t 0 ]; then
+            read -rp "Overwrite with the recommended config? [y/N] " overwrite_answer
+        else
+            overwrite_answer="y"
+        fi
+        if [[ "$overwrite_answer" =~ ^[Yy]$ ]]; then
+            tmp=$(mktemp)
+            jq --argjson sl "$STATUSLINE_JSON" '.statusLine = $sl' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
+            echo "[OK] Updated statusLine config"
+        else
+            echo "Kept existing config."
+        fi
     else
         # Add statusLine config
         tmp=$(mktemp)
-        jq '. + {"statusLine": {"command": "~/.claude/statusline.sh"}}' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
+        jq --argjson sl "$STATUSLINE_JSON" '. + {statusLine: $sl}' "$SETTINGS_FILE" > "$tmp" && mv "$tmp" "$SETTINGS_FILE"
         echo "[OK] Added statusLine config to $SETTINGS_FILE"
     fi
 else
     # Create settings.json with statusLine config
-    echo '{"statusLine": {"command": "~/.claude/statusline.sh"}}' | jq . > "$SETTINGS_FILE"
+    jq -n --argjson sl "$STATUSLINE_JSON" '{statusLine: $sl}' > "$SETTINGS_FILE"
     echo "[OK] Created $SETTINGS_FILE with statusLine config"
 fi
 
 echo ""
 echo "=== Installation complete! ==="
 echo ""
+jq '.statusLine' "$SETTINGS_FILE"
+echo ""
 echo "Restart Claude Code to see the statusline."
-echo "To enable debug mode: DEBUG=1 claude"
+echo ""
+echo "Tweak behaviour later by editing the command in $SETTINGS_FILE:"
+echo "  STATUSLINE_LAYOUT=1|2              — single vs. two lines"
+echo "  STATUSLINE_PROFILE=minimal|standard|full  — how many fields to show"
+echo "  DEBUG=1 claude                     — dump raw stdin JSON to ~/.claude/debug_status.json"
