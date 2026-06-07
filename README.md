@@ -7,13 +7,13 @@ A customizable, informative status bar for [Claude Code](https://docs.anthropic.
 **Single line** (default):
 
 ```
-🤖 Opus 4.7 ⚡FAST 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22k/200k) │ ⏱ 6m51s │ 📡 5 │ +12/-3 │ 🌿 main │ 📁 my-project
+🤖 Opus 4.8 ⚡FAST 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22k/200k) │ ⏱ 6m51s │ 📡 5 │ +12/-3 │ 🌿 main │ 📁 my-project
 ```
 
 **Two lines** (`STATUSLINE_LAYOUT=2`) — identity on top, metrics below:
 
 ```
-🤖 Opus 4.7 ⚡FAST 📋 PLAN │ 🌿 main │ 📁 my-project
+🤖 Opus 4.8 ⚡FAST 📋 PLAN │ 🌿 main │ 📁 my-project
 $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22k/200k) │ ⏱ 6m51s │ 📡 5 │ +12/-3
 ```
 
@@ -21,13 +21,13 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22
 
 | Indicator | Description |
 |-----------|-------------|
-| 🤖 Model | Current model (Opus 4.7, Sonnet 4.6, etc.) |
+| 🤖 Model | Current model, colored by tier — Opus magenta, Sonnet blue, Haiku green (Opus 4.8, Sonnet 4.6, etc.) |
 | ⚡FAST / STD | Fast mode indicator |
 | 📋 PLAN / 🚀 AUTO / ✅ EDIT / ⚠️ YOLO | Permission mode (read from transcript — `default` is silent) |
 | 🎨 style | Output style (when not default) |
 | 🤝 agent | Active subagent name |
 | 📛 name | Custom session name (set via `--name` / `/rename`) |
-| ⚠️ 200k+ | Shown when total tokens exceed 200k (1M context models) |
+| ⚠️ 200k+ / 📚 long-ctx | Token threshold crossed: red `⚠️ 200k+` on classic 200k models (at the ceiling), cyan `📚 long-ctx` on 1M-context models like Opus 4.8 (informational) |
 | $X.XX | Session cost (API users: actual cost, Pro/Max: $0.00) |
 | [████░░] X% | Context window usage with color-coded progress bar |
 | (Xk/200k) | Token usage (used/total) |
@@ -45,6 +45,16 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22
 - 🟢 Green: < 50% used
 - 🟡 Yellow: 50-75% used
 - 🔴 Red: > 75% used
+
+### Model tier colors
+
+The 🤖 model name is colored by tier so you can tell at a glance which model (and price point) you're on:
+
+- 🟣 Magenta (bold): **Opus** — premium tier (e.g. Opus 4.8)
+- 🔵 Blue: **Sonnet**
+- 🟢 Green: **Haiku**
+
+Matching is on the tier word in `model.display_name`, so new versions are colored automatically with no code change.
 
 ### Profile (`STATUSLINE_PROFILE` env var)
 
@@ -211,7 +221,7 @@ Displays your Claude.ai 5-hour and 7-day rate limit consumption (`📊 5h:42% 7d
 - `🤝 name` shows the active subagent when one is running.
 - `📛 name` shows a custom session name set via `--name` or `/rename`.
 - `🎨 name` shows the output style when it's not `default`.
-- `⚠️ 200k+` warns when the session exceeds 200k tokens (1M context models).
+- `⚠️ 200k+` / `📚 long-ctx` marks crossing 200k tokens — red warning on classic 200k models (at the ceiling), cyan informational badge on 1M-context models like Opus 4.8.
 - `⌨ NORMAL` / `⌨ INSERT` appears when vim mode is enabled.
 
 ## Customization
@@ -253,14 +263,14 @@ The script extracts all fields in a single `jq` call, then assembles the output 
 
 | Icon | Meaning | Source / Logic |
 |------|---------|---------------|
-| 🤖 | Model name | `model.display_name` from Claude Code JSON input |
+| 🤖 | Model name | `model.display_name` from Claude Code JSON input — colored by tier: Opus = magenta (premium), Sonnet = blue, Haiku = green |
 | ⚡FAST | Fast mode active (yellow) | Reads transcript JSONL: first checks for `Fast mode ON/OFF` toggle, falls back to `"speed":"fast"` field |
 | STD | Standard speed (gray) | Same as above, shown when not in fast mode |
 | 📋 PLAN / 🚀 AUTO / ✅ EDIT / ⚠️ YOLO | Permission mode | Reads last `{"type":"permission-mode","permissionMode":"..."}` entry in transcript JSONL; `default` is silent |
 | 🎨 style | Output style | `output_style.name` — shown only when ≠ `default` (standard/full profile) |
 | 🤝 agent | Active subagent | `agent.name` — present only during `--agent` sessions (standard/full profile) |
 | 📛 name | Custom session name | `session_name` — shown only when set via `--name` / `/rename` (standard/full profile) |
-| ⚠️ 200k+ | Over 200k tokens | `exceeds_200k_tokens` — warn on 1M-context models (full profile) |
+| ⚠️ 200k+ / 📚 long-ctx | Over 200k tokens | `exceeds_200k_tokens` — red `⚠️ 200k+` when `context_window_size` ≤ 200k (at the ceiling), cyan `📚 long-ctx` when > 200k like Opus 4.8 1M (informational); full profile |
 | $X.XX | Session cost | `cost.total_cost_usd` — actual API cost (Pro/Max users see $0.00) |
 | [████░░] X% | Context window usage | `context_window.used_percentage` — 20-char progress bar, color-coded: 🟢 <50%, 🟡 50-75%, 🔴 >75% |
 | (Xk/Xk) | Tokens used/total | Derived from `used_percentage * context_window_size` / `context_window_size` |
@@ -315,13 +325,13 @@ Testreszabhato, informativ status bar a [Claude Code](https://docs.anthropic.com
 **Egysoros** (alapertelmezett):
 
 ```
-🤖 Opus 4.7 ⚡FAST 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22k/200k) │ ⏱ 6m51s │ 📡 5 │ +12/-3 │ 🌿 main │ 📁 my-project
+🤖 Opus 4.8 ⚡FAST 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22k/200k) │ ⏱ 6m51s │ 📡 5 │ +12/-3 │ 🌿 main │ 📁 my-project
 ```
 
 **Ketsoros** (`STATUSLINE_LAYOUT=2`) — identitas felul, metrikak alul:
 
 ```
-🤖 Opus 4.7 ⚡FAST 📋 PLAN │ 🌿 main │ 📁 my-project
+🤖 Opus 4.8 ⚡FAST 📋 PLAN │ 🌿 main │ 📁 my-project
 $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22k/200k) │ ⏱ 6m51s │ 📡 5 │ +12/-3
 ```
 
@@ -329,13 +339,13 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22
 
 | Jelzo | Leiras |
 |-------|--------|
-| 🤖 Model | Aktualis modell (Opus 4.7, Sonnet 4.6, stb.) |
+| 🤖 Model | Aktualis modell, tier szerint szinezve — Opus magenta, Sonnet kek, Haiku zold (Opus 4.8, Sonnet 4.6, stb.) |
 | ⚡FAST / STD | Fast mode jelzo |
 | 📋 PLAN / 🚀 AUTO / ✅ EDIT / ⚠️ YOLO | Permission mode (transcriptbol olvasva — `default` nem latszik) |
 | 🎨 style | Output style (ha nem default) |
 | 🤝 agent | Aktiv subagent neve |
 | 📛 name | Egyedi session nev (`--name` / `/rename`) |
-| ⚠️ 200k+ | Akkor jelenik meg, ha a session atlepte a 200k tokent (1M context modellek) |
+| ⚠️ 200k+ / 📚 long-ctx | 200k token atlepve: piros `⚠️ 200k+` klasszikus 200k modellnel (plafon), cyan `📚 long-ctx` 1M-context modellnel mint Opus 4.8 (informativ) |
 | $X.XX | Session koltseg (API: tenyleges koltseg, Pro/Max: $0.00) |
 | [████░░] X% | Context ablak hasznalat szin-kodolt progress barral |
 | (Xk/200k) | Token hasznalat (felhasznalt/osszes) |
@@ -353,6 +363,16 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22
 - 🟢 Zold: < 50% hasznalat
 - 🟡 Sarga: 50-75% hasznalat
 - 🔴 Piros: > 75% hasznalat
+
+### Modell tier szinek
+
+A 🤖 modellnev tier szerint szinezve, hogy egy pillantasra lasd, melyik modellen (es araron) vagy:
+
+- 🟣 Magenta (felkover): **Opus** — premium tier (pl. Opus 4.8)
+- 🔵 Kek: **Sonnet**
+- 🟢 Zold: **Haiku**
+
+A talalat a `model.display_name` tier-szavara megy, igy az uj verziok kodmodositas nelkul szinezodnek.
 
 ### Profil (`STATUSLINE_PROFILE` kornyezeti valtozo)
 
@@ -488,14 +508,14 @@ A bar akkor frissul, amikor uj asszisztens uzenet erkezik, permission-mode valto
 
 | Ikon | Jelentes | Forras / Logika |
 |------|----------|-----------------|
-| 🤖 | Modell neve | `model.display_name` a Claude Code JSON bemenetbol |
+| 🤖 | Modell neve | `model.display_name` a Claude Code JSON bemenetbol — tier szerint szinezve: Opus = magenta (premium), Sonnet = kek, Haiku = zold |
 | ⚡FAST | Fast mod aktiv (sarga) | Transcript JSONL-bol: eloszor `Fast mode ON/OFF` toggle-t keres, fallback: `"speed":"fast"` |
 | STD | Standard sebesseg (szurke) | Ugyanaz, mint fent — ha nincs fast mod |
 | 📋 PLAN / 🚀 AUTO / ✅ EDIT / ⚠️ YOLO | Permission mode | Transcript JSONL utolso `{"type":"permission-mode","permissionMode":"..."}` bejegyzese; `default` eseten nincs kijelzes |
 | 🎨 style | Output style | `output_style.name` — csak ha ≠ `default` (standard/full profil) |
 | 🤝 agent | Aktiv subagent | `agent.name` — csak `--agent` sessionben (standard/full profil) |
 | 📛 name | Egyedi session nev | `session_name` — csak `--name` / `/rename` eseten (standard/full profil) |
-| ⚠️ 200k+ | 200k token folott | `exceeds_200k_tokens` — 1M-context modelleknel (full profil) |
+| ⚠️ 200k+ / 📚 long-ctx | 200k token folott | `exceeds_200k_tokens` — piros `⚠️ 200k+` ha `context_window_size` ≤ 200k (plafon), cyan `📚 long-ctx` ha > 200k mint az Opus 4.8 1M (informativ); full profil |
 | $X.XX | Session koltseg | `cost.total_cost_usd` — valos API koltseg (Pro/Max: $0.00) |
 | [████░░] X% | Context ablak hasznalat | `context_window.used_percentage` — 20 karakteres progress bar, szin: 🟢 <50%, 🟡 50-75%, 🔴 >75% |
 | (Xk/Xk) | Tokenek (hasznalt/osszes) | `used_percentage * context_window_size` / `context_window_size` |

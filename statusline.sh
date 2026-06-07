@@ -50,6 +50,17 @@ eval "$(echo "$data" | jq -r '
   @sh "rate_7d=\(.rate_limits.seven_day.used_percentage // "")"
 ')"
 
+# === MODEL TIER COLOR ===
+# Opus = premium ($5/$25), Sonnet = balanced, Haiku = fast/cheap.
+# model is model.display_name (e.g. "Opus 4.8") — matched case-insensitively-ish
+# on the tier word, so future versions colorize without code changes.
+case "$model" in
+    *Opus*)   model_colored="\033[1;35m${model}\033[0m" ;;  # bold magenta (premium)
+    *Sonnet*) model_colored="\033[34m${model}\033[0m"   ;;  # blue
+    *Haiku*)  model_colored="\033[32m${model}\033[0m"   ;;  # green
+    *)        model_colored="${model}"                  ;;  # unknown → no color
+esac
+
 # === PROJECT FOLDER ===
 project_dir=$(basename "$cwd" 2>/dev/null)
 
@@ -187,7 +198,15 @@ fi
 if [ "$STATUSLINE_PROFILE" = "full" ]; then
     [ -n "$worktree_name" ] && wt_info="🌳 ${worktree_name}"
     [ -n "$vim_mode" ]      && vim_info="⌨ ${vim_mode}"
-    [ "$exceeds_200k" = "true" ] && warn_info="\033[31m⚠️  200k+\033[0m"
+    # On 1M-context models (Opus 4.8 etc.) crossing 200k is routine, not an alarm —
+    # show an informational cyan badge. On classic 200k models it's the real ceiling.
+    if [ "$exceeds_200k" = "true" ]; then
+        if [ "$ctx_size" -gt 200000 ]; then
+            warn_info="\033[36m📚 long-ctx\033[0m"   # cyan — informational (1M models)
+        else
+            warn_info="\033[31m⚠️  200k+\033[0m"       # red — at the 200k ceiling
+        fi
+    fi
 
     rl_parts=""
     [ -n "$rate_5h" ] && rl_parts="5h:$(printf '%.0f' "$rate_5h")%"
@@ -201,14 +220,14 @@ if [ "$STATUSLINE_PROFILE" = "minimal" ]; then
     # Compact single line: model + permission mode + cost + bar% + duration + git + folder.
     # Drop speed (FAST/STD), API count, line diff, and token detail for space.
     # LAYOUT=2 is ignored here — minimal is always one line by design.
-    output="🤖 ${model}"
+    output="🤖 ${model_colored}"
     [ -n "$perm_info" ] && output="${output} ${perm_info}"
     output="${output} │ ${cost_formatted} │ ${tokens_info} │ ${duration_str}"
     output="${output} │ 🌿 ${git_info} │ 📁 ${project_dir}"
     printf "%b" "$output"
 elif [ "$STATUSLINE_LAYOUT" = "2" ]; then
     # Two-line layout — identity on row 1, metrics on row 2.
-    row1="🤖 ${model}"
+    row1="🤖 ${model_colored}"
     [ -n "$speed_info" ] && row1="${row1} ${speed_info}"
     [ -n "$perm_info" ]  && row1="${row1} ${perm_info}"
     [ -n "$style_info" ] && row1="${row1} │ ${style_info}"
@@ -227,7 +246,7 @@ elif [ "$STATUSLINE_LAYOUT" = "2" ]; then
     printf "%b\n%b" "$row1" "$row2"
 else
     # Single-line layout (default, backward-compatible)
-    output="🤖 ${model}"
+    output="🤖 ${model_colored}"
     [ -n "$speed_info" ] && output="${output} ${speed_info}"
     [ -n "$perm_info" ]  && output="${output} ${perm_info}"
     [ -n "$style_info" ] && output="${output} │ ${style_info}"

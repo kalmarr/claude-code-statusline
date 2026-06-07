@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Claude Code Statusline - Installer
-# https://github.com/kalmarr-dev/claude-code-statusline
+# https://github.com/kalmarr/claude-code-statusline
 
 set -euo pipefail
 
