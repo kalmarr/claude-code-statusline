@@ -11,14 +11,14 @@ A customizable, informative status bar for the [Claude Code](https://docs.anthro
 **Single line** (default):
 
 ```
-🤖 Opus 4.8 ⚡FAST 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22k/200k) │ ⏱ 6m51s │ 📡 5 │ +12/-3 │ 🌿 main │ 📁 my-project
+🤖 Opus 5 ⚡FAST 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ +12/-3 │ 🌿 main │ 📁 my-project
 ```
 
 **Two lines** (`STATUSLINE_LAYOUT=2`) — identity on top, metrics below:
 
 ```
-🤖 Opus 4.8 ⚡FAST 📋 PLAN │ 🌿 main │ 📁 my-project
-$0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22k/200k) │ ⏱ 6m51s │ 📡 5 │ +12/-3
+🤖 Opus 5 ⚡FAST 📋 PLAN │ 🌿 main │ 📁 my-project
+$0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ +12/-3
 ```
 
 ## Table of contents
@@ -46,13 +46,13 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22
 
 | Indicator | Description |
 |-----------|-------------|
-| 🤖 Model | Current model, colored by tier — Opus magenta, Sonnet blue, Haiku green (Opus 4.8, Sonnet 4.6, etc.) |
+| 🤖 Model | Current model, colored by tier — Fable/Mythos gold, Opus magenta, Sonnet blue, Haiku green (Fable 5, Opus 5, Sonnet 5, etc.) |
 | ⚡FAST / STD | Fast mode indicator |
 | 📋 PLAN / 🚀 AUTO / ✅ EDIT / ⚠️ YOLO | Permission mode (read from transcript — `default` is silent) |
 | 🎨 style | Output style (when not default) |
 | 🤝 agent | Active subagent name |
 | 📛 name | Custom session name (set via `--name` / `/rename`) |
-| ⚠️ 200k+ / 📚 long-ctx | Token threshold crossed: red `⚠️ 200k+` on classic 200k models (at the ceiling), cyan `📚 long-ctx` on 1M-context models like Opus 4.8 (informational) |
+| ⚠️ 200k+ / 📚 long-ctx | Token threshold crossed: red `⚠️ 200k+` on 200k models like Haiku 4.5 (at the ceiling), cyan `📚 long-ctx` on 1M-context models — Fable 5, Opus 5/4.x, Sonnet 5/4.6 (informational) |
 | $X.XX | Session cost (API users: actual cost, Pro/Max: $0.00) |
 | [████░░] X% | Context window usage with color-coded progress bar |
 | (Xk/200k) | Token usage (used/total) |
@@ -79,11 +79,12 @@ The progress bar changes color with usage:
 
 The 🤖 model name is colored by tier so you can tell at a glance which model (and price point) you're on:
 
-- 🟣 Magenta (bold): **Opus** — premium tier (e.g. Opus 4.8)
+- 🟡 Gold (bold): **Fable / Mythos** — frontier tier (e.g. Fable 5)
+- 🟣 Magenta (bold): **Opus** — premium tier (e.g. Opus 5, Opus 4.8)
 - 🔵 Blue: **Sonnet**
 - 🟢 Green: **Haiku**
 
-Matching is on the tier word in `model.display_name`, so new versions are colored automatically with no code change.
+Matching is case-insensitive on the tier word in `model.display_name`, so new versions are colored automatically with no code change.
 
 ## Profiles
 
@@ -254,7 +255,7 @@ This saves the raw JSON input to `~/.claude/debug_status.json` on every update. 
 
 ### Fast mode indicator
 
-When you toggle `/fast` in Claude Code, the statusline shows `⚡FAST` in yellow next to the model name. It reads the transcript file for the last `Fast mode ON/OFF` event, falling back to the `"speed"` field. `/fast` is available on Opus 4.6/4.7/4.8.
+When you toggle `/fast` in Claude Code, the statusline shows `⚡FAST` in yellow next to the model name. It reads the transcript file for the last `Fast mode ON/OFF` event, falling back to the `"speed"` field. `/fast` is available on Opus 5 and Opus 4.8 (it was removed from Opus 4.7).
 
 ### Permission mode indicator
 
@@ -272,9 +273,9 @@ The bar updates after each assistant message, after a permission-mode change, an
 
 A 20-character progress bar (10 in the `minimal` profile) that changes color based on usage: green under 50%, yellow 50–75%, red above 75%. The `(Xk/Yk)` token count is **derived** from `used_percentage × context_window_size`, so it always stays consistent with the bar.
 
-### 1M-context awareness (Opus 4.8)
+### 1M-context awareness (Claude 5 family)
 
-On models with a context window larger than 200k (e.g. Opus 4.8's 1M), crossing 200k tokens is routine, not a warning — so the bar shows an informational cyan `📚 long-ctx` badge. On classic 200k-context models, crossing 200k is the real ceiling and stays a red `⚠️ 200k+`.
+All current models — Fable 5, Opus 5/4.8/4.7/4.6, Sonnet 5, Sonnet 4.6 — have a 1M-token context window, where crossing 200k tokens is routine, not a warning — so the bar shows an informational cyan `📚 long-ctx` badge. On 200k-context models (Haiku 4.5), crossing 200k is the real ceiling and stays a red `⚠️ 200k+`. The distinction is data-driven (`context_window_size > 200000`), so it works for future models automatically.
 
 ### Git integration
 
@@ -345,14 +346,14 @@ Claude Code  ── pipes JSON on stdin ──▶  statusline.sh
 
 | Icon | Meaning | Source / Logic |
 |------|---------|---------------|
-| 🤖 | Model name | `model.display_name` from Claude Code JSON input — colored by tier: Opus = magenta (premium), Sonnet = blue, Haiku = green |
+| 🤖 | Model name | `model.display_name` from Claude Code JSON input — colored by tier: Fable/Mythos = gold (frontier), Opus = magenta (premium), Sonnet = blue, Haiku = green |
 | ⚡FAST | Fast mode active (yellow) | Reads transcript JSONL: first checks for `Fast mode ON/OFF` toggle, falls back to `"speed":"fast"` field |
 | STD | Standard speed (gray) | Same as above, shown when not in fast mode |
 | 📋 PLAN / 🚀 AUTO / ✅ EDIT / ⚠️ YOLO | Permission mode | Reads last `{"type":"permission-mode","permissionMode":"..."}` entry in transcript JSONL; `default` is silent |
 | 🎨 style | Output style | `output_style.name` — shown only when ≠ `default` (standard/full profile) |
 | 🤝 agent | Active subagent | `agent.name` — present only during `--agent` sessions (standard/full profile) |
 | 📛 name | Custom session name | `session_name` — shown only when set via `--name` / `/rename` (standard/full profile) |
-| ⚠️ 200k+ / 📚 long-ctx | Over 200k tokens | `exceeds_200k_tokens` — red `⚠️ 200k+` when `context_window_size` ≤ 200k (at the ceiling), cyan `📚 long-ctx` when > 200k like Opus 4.8 1M (informational); full profile |
+| ⚠️ 200k+ / 📚 long-ctx | Over 200k tokens | `exceeds_200k_tokens` — red `⚠️ 200k+` when `context_window_size` ≤ 200k (at the ceiling), cyan `📚 long-ctx` when > 200k like the 1M Claude 5 models (informational); full profile |
 | $X.XX | Session cost | `cost.total_cost_usd` — actual API cost (Pro/Max users see $0.00) |
 | [████░░] X% | Context window usage | `context_window.used_percentage` — 20-char progress bar, color-coded: 🟢 <50%, 🟡 50-75%, 🔴 >75% |
 | (Xk/Xk) | Tokens used/total | Derived from `used_percentage * context_window_size` / `context_window_size` |
@@ -372,7 +373,7 @@ You can modify `statusline.sh` to change:
 
 - **Progress bar width**: change `bar_len=20` in the context-window section
 - **Color thresholds**: adjust the percentage checks in the context-window section
-- **Model tier colors**: edit the `case "$model"` block (the `MODEL TIER COLOR` section)
+- **Model tier colors**: edit the `case "${model,,}"` block (the `MODEL TIER COLOR` section)
 - **Output format**: modify the output-assembly block at the bottom
 - **Remove sections**: comment out or delete any segment you don't need
 
@@ -385,11 +386,11 @@ See `examples/minimal.sh` for a stripped-down version showing only model, cost, 
 The script reads a single JSON object on stdin, so you can feed it sample input directly:
 
 ```bash
-echo '{"model":{"display_name":"Opus 4.8"},"context_window":{"used_percentage":25,"context_window_size":1000000},"exceeds_200k_tokens":true,"cost":{"total_cost_usd":1.2},"workspace":{"current_dir":"'"$PWD"'"}}' \
+echo '{"model":{"display_name":"Fable 5"},"context_window":{"used_percentage":25,"context_window_size":1000000},"exceeds_200k_tokens":true,"cost":{"total_cost_usd":1.2},"workspace":{"current_dir":"'"$PWD"'"}}' \
   | STATUSLINE_LAYOUT=2 STATUSLINE_PROFILE=full ./statusline.sh
 ```
 
-Swap `display_name` to `Sonnet 4.6` / `Haiku 4.5` to see the tier colors, or set `context_window_size` to `200000` to see the red `⚠️ 200k+` instead of `📚 long-ctx`.
+Swap `display_name` to `Opus 5` / `Sonnet 5` / `Haiku 4.5` to see the tier colors, or set `context_window_size` to `200000` to see the red `⚠️ 200k+` instead of `📚 long-ctx`.
 
 ### Capture real input
 
@@ -422,7 +423,7 @@ Keep changes POSIX-friendly where possible, run `bash -n statusline.sh` before c
 
 **Cost shows `$0.00`** — That's expected for Claude.ai Pro/Max users — billing isn't per-request. API-key users see the real cost. Pro/Max users get the `📊` rate-limit segment instead.
 
-**The `📚 long-ctx` badge replaced my `⚠️ 200k+`** — Intentional on 1M-context models like Opus 4.8: crossing 200k is normal there, so it's informational (cyan), not a warning (red). Classic 200k models still show the red warning.
+**The `📚 long-ctx` badge replaced my `⚠️ 200k+`** — Intentional on 1M-context models (Fable 5, Opus 5/4.x, Sonnet 5/4.6): crossing 200k is normal there, so it's informational (cyan), not a warning (red). 200k models like Haiku 4.5 still show the red warning.
 
 **How do I hide a segment?** — Switch to a smaller profile (`STATUSLINE_PROFILE=minimal`/`standard`), or edit the output-assembly block in `statusline.sh`.
 
@@ -481,14 +482,14 @@ Testreszabhato, informativ status bar a [Claude Code](https://docs.anthropic.com
 **Egysoros** (alapertelmezett):
 
 ```
-🤖 Opus 4.8 ⚡FAST 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22k/200k) │ ⏱ 6m51s │ 📡 5 │ +12/-3 │ 🌿 main │ 📁 my-project
+🤖 Opus 5 ⚡FAST 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ +12/-3 │ 🌿 main │ 📁 my-project
 ```
 
 **Ketsoros** (`STATUSLINE_LAYOUT=2`) — identitas felul, metrikak alul:
 
 ```
-🤖 Opus 4.8 ⚡FAST 📋 PLAN │ 🌿 main │ 📁 my-project
-$0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22k/200k) │ ⏱ 6m51s │ 📡 5 │ +12/-3
+🤖 Opus 5 ⚡FAST 📋 PLAN │ 🌿 main │ 📁 my-project
+$0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ +12/-3
 ```
 
 ## Tartalom
@@ -516,13 +517,13 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (22
 
 | Jelzo | Leiras |
 |-------|--------|
-| 🤖 Model | Aktualis modell, tier szerint szinezve — Opus magenta, Sonnet kek, Haiku zold (Opus 4.8, Sonnet 4.6, stb.) |
+| 🤖 Model | Aktualis modell, tier szerint szinezve — Fable/Mythos arany, Opus magenta, Sonnet kek, Haiku zold (Fable 5, Opus 5, Sonnet 5, stb.) |
 | ⚡FAST / STD | Fast mode jelzo |
 | 📋 PLAN / 🚀 AUTO / ✅ EDIT / ⚠️ YOLO | Permission mode (transcriptbol olvasva — `default` nem latszik) |
 | 🎨 style | Output style (ha nem default) |
 | 🤝 agent | Aktiv subagent neve |
 | 📛 name | Egyedi session nev (`--name` / `/rename`) |
-| ⚠️ 200k+ / 📚 long-ctx | 200k token atlepve: piros `⚠️ 200k+` klasszikus 200k modellnel (plafon), cyan `📚 long-ctx` 1M-context modellnel mint Opus 4.8 (informativ) |
+| ⚠️ 200k+ / 📚 long-ctx | 200k token atlepve: piros `⚠️ 200k+` 200k modellnel mint a Haiku 4.5 (plafon), cyan `📚 long-ctx` 1M-context modellnel — Fable 5, Opus 5/4.x, Sonnet 5/4.6 (informativ) |
 | $X.XX | Session koltseg (API: tenyleges koltseg, Pro/Max: $0.00) |
 | [████░░] X% | Context ablak hasznalat szin-kodolt progress barral |
 | (Xk/200k) | Token hasznalat (felhasznalt/osszes) |
@@ -549,11 +550,12 @@ A progress bar szine a hasznalattal valtozik:
 
 A 🤖 modellnev tier szerint szinezve, hogy egy pillantasra lasd, melyik modellen (es araron) vagy:
 
-- 🟣 Magenta (felkover): **Opus** — premium tier (pl. Opus 4.8)
+- 🟡 Arany (felkover): **Fable / Mythos** — frontier tier (pl. Fable 5)
+- 🟣 Magenta (felkover): **Opus** — premium tier (pl. Opus 5, Opus 4.8)
 - 🔵 Kek: **Sonnet**
 - 🟢 Zold: **Haiku**
 
-A talalat a `model.display_name` tier-szavara megy, igy az uj verziok kodmodositas nelkul szinezodnek.
+A talalat kis/nagybetu-fuggetlenul a `model.display_name` tier-szavara megy, igy az uj verziok kodmodositas nelkul szinezodnek.
 
 ## Profilok
 
@@ -724,7 +726,7 @@ Ez minden frissiteskor elmenti a nyers JSON bemenetet a `~/.claude/debug_status.
 
 ### Fast mode jelzo
 
-A `/fast` valtaskor a statusline `⚡FAST`-ot mutat sargaban a modellnev mellett. A transcriptbol olvassa az utolso `Fast mode ON/OFF` esemenyt, fallback a `"speed"` mezo. A `/fast` elerheto Opus 4.6/4.7/4.8-on.
+A `/fast` valtaskor a statusline `⚡FAST`-ot mutat sargaban a modellnev mellett. A transcriptbol olvassa az utolso `Fast mode ON/OFF` esemenyt, fallback a `"speed"` mezo. A `/fast` elerheto Opus 5-on es Opus 4.8-on (az Opus 4.7-rol eltavolitottak).
 
 ### Permission mode jelzo
 
@@ -742,9 +744,9 @@ A bar frissul minden asszisztens uzenet utan, permission-mode valtaskor, es a be
 
 20 karakteres bar (a `minimal` profilban 10), ami szint valt: zold 50% alatt, sarga 50–75%, piros 75% folott. A `(Xk/Yk)` token-szam a `used_percentage × context_window_size`-bol **szarmaztatva**, igy mindig konzisztens a barral.
 
-### 1M-context tudatossag (Opus 4.8)
+### 1M-context tudatossag (Claude 5 csalad)
 
-A 200k-nal nagyobb context ablaku modelleknel (pl. Opus 4.8 1M) a 200k atlepese rutinszeru, nem figyelmeztetes — ezert informativ cyan `📚 long-ctx` jelet mutat. A klasszikus 200k modelleknel a 200k a valodi plafon, ott marad a piros `⚠️ 200k+`.
+Minden aktualis modell — Fable 5, Opus 5/4.8/4.7/4.6, Sonnet 5, Sonnet 4.6 — 1M tokenes context ablakkal fut, ahol a 200k atlepese rutinszeru, nem figyelmeztetes — ezert informativ cyan `📚 long-ctx` jelet mutat. A 200k-s modelleknel (Haiku 4.5) a 200k a valodi plafon, ott marad a piros `⚠️ 200k+`. A megkulonboztetes adat-vezerelt (`context_window_size > 200000`), igy a jovobeli modellekkel is automatikusan mukodik.
 
 ### Git integracio
 
@@ -797,14 +799,14 @@ Claude Code  ── JSON a stdin-en ──▶  statusline.sh
 
 | Ikon | Jelentes | Forras / Logika |
 |------|----------|-----------------|
-| 🤖 | Modell neve | `model.display_name` a Claude Code JSON bemenetbol — tier szerint szinezve: Opus = magenta (premium), Sonnet = kek, Haiku = zold |
+| 🤖 | Modell neve | `model.display_name` a Claude Code JSON bemenetbol — tier szerint szinezve: Fable/Mythos = arany (frontier), Opus = magenta (premium), Sonnet = kek, Haiku = zold |
 | ⚡FAST | Fast mod aktiv (sarga) | Transcript JSONL-bol: eloszor `Fast mode ON/OFF` toggle-t keres, fallback: `"speed":"fast"` |
 | STD | Standard sebesseg (szurke) | Ugyanaz, mint fent — ha nincs fast mod |
 | 📋 PLAN / 🚀 AUTO / ✅ EDIT / ⚠️ YOLO | Permission mode | Transcript JSONL utolso `{"type":"permission-mode","permissionMode":"..."}` bejegyzese; `default` eseten nincs kijelzes |
 | 🎨 style | Output style | `output_style.name` — csak ha ≠ `default` (standard/full profil) |
 | 🤝 agent | Aktiv subagent | `agent.name` — csak `--agent` sessionben (standard/full profil) |
 | 📛 name | Egyedi session nev | `session_name` — csak `--name` / `/rename` eseten (standard/full profil) |
-| ⚠️ 200k+ / 📚 long-ctx | 200k token folott | `exceeds_200k_tokens` — piros `⚠️ 200k+` ha `context_window_size` ≤ 200k (plafon), cyan `📚 long-ctx` ha > 200k mint az Opus 4.8 1M (informativ); full profil |
+| ⚠️ 200k+ / 📚 long-ctx | 200k token folott | `exceeds_200k_tokens` — piros `⚠️ 200k+` ha `context_window_size` ≤ 200k (plafon), cyan `📚 long-ctx` ha > 200k mint az 1M-es Claude 5 modellek (informativ); full profil |
 | $X.XX | Session koltseg | `cost.total_cost_usd` — valos API koltseg (Pro/Max: $0.00) |
 | [████░░] X% | Context ablak hasznalat | `context_window.used_percentage` — 20 karakteres progress bar, szin: 🟢 <50%, 🟡 50-75%, 🔴 >75% |
 | (Xk/Xk) | Tokenek (hasznalt/osszes) | `used_percentage * context_window_size` / `context_window_size` |
@@ -837,11 +839,11 @@ Lasd az `examples/minimal.sh`-t egy lecsupasztott valtozathoz.
 A script egyetlen JSON objektumot olvas stdin-en, igy kozvetlenul etethetsz minta-bemenetet:
 
 ```bash
-echo '{"model":{"display_name":"Opus 4.8"},"context_window":{"used_percentage":25,"context_window_size":1000000},"exceeds_200k_tokens":true,"cost":{"total_cost_usd":1.2},"workspace":{"current_dir":"'"$PWD"'"}}' \
+echo '{"model":{"display_name":"Fable 5"},"context_window":{"used_percentage":25,"context_window_size":1000000},"exceeds_200k_tokens":true,"cost":{"total_cost_usd":1.2},"workspace":{"current_dir":"'"$PWD"'"}}' \
   | STATUSLINE_LAYOUT=2 STATUSLINE_PROFILE=full ./statusline.sh
 ```
 
-Csereld a `display_name`-t `Sonnet 4.6` / `Haiku 4.5`-re a tier szinekhez, vagy allitsd a `context_window_size`-t `200000`-re a piros `⚠️ 200k+`-hoz a `📚 long-ctx` helyett.
+Csereld a `display_name`-t `Opus 5` / `Sonnet 5` / `Haiku 4.5`-re a tier szinekhez, vagy allitsd a `context_window_size`-t `200000`-re a piros `⚠️ 200k+`-hoz a `📚 long-ctx` helyett.
 
 ### Valos bemenet rogzitese
 
@@ -874,7 +876,7 @@ Tartsd a valtoztatasokat lehetoleg POSIX-baratnak, futtasd a `bash -n statusline
 
 **A koltseg `$0.00`** — Ez varhato Claude.ai Pro/Max felhasznaloknak — nincs per-keres szamlazas. API-kulcsos felhasznalok latjak a valos koltseget. Pro/Max felhasznalok a `📊` rate-limit szegmenst kapjak helyette.
 
-**A `📚 long-ctx` lecserelte a `⚠️ 200k+`-t** — Szandekos az 1M-context modelleknel mint az Opus 4.8: ott a 200k atlepese normalis, ezert informativ (cyan), nem figyelmeztetes (piros). A klasszikus 200k modellek tovabbra is a piros figyelmeztetest mutatjak.
+**A `📚 long-ctx` lecserelte a `⚠️ 200k+`-t** — Szandekos az 1M-context modelleknel (Fable 5, Opus 5/4.x, Sonnet 5/4.6): ott a 200k atlepese normalis, ezert informativ (cyan), nem figyelmeztetes (piros). A 200k-s modellek mint a Haiku 4.5 tovabbra is a piros figyelmeztetest mutatjak.
 
 **Hogyan rejtsek el egy szegmenst?** — Valts kisebb profilra (`minimal`/`standard`), vagy szerkeszd az output-osszeallito blokkot a `statusline.sh`-ban.
 

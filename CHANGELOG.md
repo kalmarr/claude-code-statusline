@@ -6,19 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Fable/Mythos tier color** — the new Claude 5 frontier tier (Fable 5,
+  Mythos 5) is shown in bold gold, above Opus's magenta.
 - **Model-tier coloring** for the `🤖` model name — Opus is bold magenta (premium
   tier), Sonnet blue, Haiku green. Matching is on the tier word in
   `model.display_name`, so new model versions are colored with no code change.
 - **`📚 long-ctx` badge** — on models whose `context_window_size` exceeds 200k
-  (e.g. Opus 4.8 with a 1M window), crossing 200k tokens now shows an
+  (e.g. the 1M-window Claude 5 models), crossing 200k tokens now shows an
   informational cyan `📚 long-ctx` badge instead of the red `⚠️ 200k+` warning.
 - Comprehensive documentation: architecture deep-dive, configuration & segment
   visibility matrix, Development/Contributing guide, FAQ, and this changelog.
 
 ### Changed
+- Model-tier matching is now truly **case-insensitive** (`${model,,}` +
+  lowercase glob patterns), as the comment always promised.
+- Docs updated to the Claude 5 family: 1M context is now standard on Fable 5,
+  Opus 5/4.8/4.7/4.6, Sonnet 5, and Sonnet 4.6 (Haiku 4.5 stays 200k); fast
+  mode availability corrected to Opus 5 / Opus 4.8 (removed from Opus 4.7);
+  README examples and test snippets refreshed (English + Hungarian).
 - `⚠️ 200k+` now only shows red (the ceiling warning) on classic 200k-context
   models; on 1M-context models the cyan `📚 long-ctx` badge is shown instead.
-- README examples and tables updated to Opus 4.8 (English + Hungarian).
 
 ### Fixed
 - Corrected a repository URL typo in `install.sh` (`kalmarr-dev` → `kalmarr`).

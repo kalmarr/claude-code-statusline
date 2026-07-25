@@ -51,14 +51,17 @@ eval "$(echo "$data" | jq -r '
 ')"
 
 # === MODEL TIER COLOR ===
-# Opus = premium ($5/$25), Sonnet = balanced, Haiku = fast/cheap.
-# model is model.display_name (e.g. "Opus 4.8") — matched case-insensitively-ish
-# on the tier word, so future versions colorize without code changes.
-case "$model" in
-    *Opus*)   model_colored="\033[1;35m${model}\033[0m" ;;  # bold magenta (premium)
-    *Sonnet*) model_colored="\033[34m${model}\033[0m"   ;;  # blue
-    *Haiku*)  model_colored="\033[32m${model}\033[0m"   ;;  # green
-    *)        model_colored="${model}"                  ;;  # unknown → no color
+# Fable/Mythos = frontier ($10/$50), Opus = premium ($5/$25),
+# Sonnet = balanced ($3/$15), Haiku = fast/cheap ($1/$5).
+# model is model.display_name (e.g. "Fable 5", "Opus 5") — matched
+# case-insensitively on the tier word, so future versions colorize
+# without code changes.
+case "${model,,}" in
+    *fable*|*mythos*) model_colored="\033[1;33m${model}\033[0m" ;;  # bold gold (frontier)
+    *opus*)           model_colored="\033[1;35m${model}\033[0m" ;;  # bold magenta (premium)
+    *sonnet*)         model_colored="\033[34m${model}\033[0m"   ;;  # blue
+    *haiku*)          model_colored="\033[32m${model}\033[0m"   ;;  # green
+    *)                model_colored="${model}"                  ;;  # unknown → no color
 esac
 
 # === PROJECT FOLDER ===
@@ -198,8 +201,8 @@ fi
 if [ "$STATUSLINE_PROFILE" = "full" ]; then
     [ -n "$worktree_name" ] && wt_info="🌳 ${worktree_name}"
     [ -n "$vim_mode" ]      && vim_info="⌨ ${vim_mode}"
-    # On 1M-context models (Opus 4.8 etc.) crossing 200k is routine, not an alarm —
-    # show an informational cyan badge. On classic 200k models it's the real ceiling.
+    # On 1M-context models (Fable 5, Opus 5/4.x, Sonnet 5/4.6) crossing 200k is
+    # routine, not an alarm — cyan info badge. Haiku 4.5 (200k) hits the real ceiling.
     if [ "$exceeds_200k" = "true" ]; then
         if [ "$ctx_size" -gt 200000 ]; then
             warn_info="\033[36m📚 long-ctx\033[0m"   # cyan — informational (1M models)
