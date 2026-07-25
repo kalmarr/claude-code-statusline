@@ -58,12 +58,13 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (24
 | (Xk/200k) | Token usage (used/total) |
 | ⏱ Xm | Session duration |
 | 📡 N | Number of API calls in this session |
-| 📊 5h:X% 7d:Y% | Claude.ai Pro/Max rate limit usage |
+| 📊 5h:X% 7d:Y% | Claude.ai Pro/Max rate limit usage — yellow at ≥60%, red at ≥80% |
 | +X/-Y | Lines added/removed |
 | 🌿 branch | Current git branch (* = uncommitted changes) |
 | 📁 folder | Current project folder |
 | 🌳 worktree | Active git worktree name |
 | ⌨ NORMAL | Vim mode when enabled |
+| ⚙ vX.Y.Z | Claude Code version (dim gray, full profile) |
 
 ## Colors
 
@@ -84,7 +85,7 @@ The 🤖 model name is colored by tier so you can tell at a glance which model (
 - 🔵 Blue: **Sonnet**
 - 🟢 Green: **Haiku**
 
-Matching is case-insensitive on the tier word in `model.display_name`, so new versions are colored automatically with no code change.
+Matching is case-insensitive on the tier word in `model.display_name`, with `model.id` (e.g. `claude-fable-5`) as fallback — so new versions and renamed display names are colored automatically with no code change.
 
 ## Profiles
 
@@ -287,7 +288,7 @@ Tracks total lines added and removed during the session. Shows `±0` when no cha
 
 ### Rate limits (Pro/Max only)
 
-Displays your Claude.ai 5-hour and 7-day rate limit consumption (`📊 5h:42% 7d:87%`) when the `rate_limits` field is present in the JSON input. Only shown in the `full` profile.
+Displays your Claude.ai 5-hour and 7-day rate limit consumption (`📊 5h:42% 7d:87%`) when the `rate_limits` field is present in the JSON input. Only shown in the `full` profile. Each percentage is color-coded: plain below 60%, yellow at 60–79%, red at 80%+ — so you notice you're approaching the limit before hitting it.
 
 ### Worktree & agent indicators
 
@@ -327,6 +328,8 @@ Claude Code  ── pipes JSON on stdin ──▶  statusline.sh
 ### stdin JSON fields used
 
 - `model.display_name` — current model name (drives the tier color)
+- `model.id` — model ID (e.g. `claude-fable-5`) — fallback for tier detection
+- `version` — Claude Code version (shown as `⚙ vX.Y.Z` in the full profile)
 - `cost.total_cost_usd` — session cost
 - `cost.total_duration_ms` — session duration
 - `cost.total_lines_added` / `cost.total_lines_removed` — code changes
@@ -359,12 +362,13 @@ Claude Code  ── pipes JSON on stdin ──▶  statusline.sh
 | (Xk/Xk) | Tokens used/total | Derived from `used_percentage * context_window_size` / `context_window_size` |
 | ⏱ | Session duration | `cost.total_duration_ms` — auto-formats: Xs, XmXs, or XhXm |
 | 📡 N | API call count | Counts `"type":"assistant"` entries in transcript JSONL |
-| 📊 5h:X% 7d:Y% | Rate limits | `rate_limits.five_hour` / `rate_limits.seven_day` — Pro/Max only (full profile) |
+| 📊 5h:X% 7d:Y% | Rate limits | `rate_limits.five_hour` / `rate_limits.seven_day` — Pro/Max only, per-value coloring: 🟡 ≥60%, 🔴 ≥80% (full profile) |
 | +X/-Y | Lines changed | `cost.total_lines_added` / `cost.total_lines_removed` — green/red colored |
 | 🌿 | Git branch | `git branch --show-current` in workspace dir, `*` suffix = uncommitted changes |
 | 📁 | Project folder | `basename` of `workspace.current_dir` |
 | 🌳 | Git worktree | `worktree.name` or `workspace.git_worktree` (full profile) |
 | ⌨ | Vim mode | `vim.mode` — `NORMAL` / `INSERT` (full profile) |
+| ⚙ vX.Y.Z | Claude Code version | `version` from the JSON input — dim gray (full profile) |
 | │ | Separator | Visual divider between sections |
 
 ## Customization
@@ -380,6 +384,17 @@ You can modify `statusline.sh` to change:
 See `examples/minimal.sh` for a stripped-down version showing only model, cost, and context percentage.
 
 ## Development & Contributing
+
+### Which version is deployed?
+
+The script carries its own version and answers without stdin — handy when it's copied to `~/.claude/statusline.sh` on multiple machines:
+
+```bash
+~/.claude/statusline.sh --version
+# claude-code-statusline v0.3.0
+```
+
+Compare with the repo's `statusline.sh` (or the [Changelog](#changelog)) to see if a deployed copy is stale.
 
 ### Test locally without Claude Code
 
@@ -529,12 +544,13 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (24
 | (Xk/200k) | Token hasznalat (felhasznalt/osszes) |
 | ⏱ Xm | Session idotartam |
 | 📡 N | API hivasok szama a sessionben |
-| 📊 5h:X% 7d:Y% | Claude.ai Pro/Max rate limit hasznalat |
+| 📊 5h:X% 7d:Y% | Claude.ai Pro/Max rate limit hasznalat — sarga ≥60%, piros ≥80% |
 | +X/-Y | Hozzaadott/torolt sorok |
 | 🌿 branch | Aktualis git branch (* = nem commitolt valtozasok) |
 | 📁 folder | Aktualis projekt mappa |
 | 🌳 worktree | Aktiv git worktree neve |
 | ⌨ NORMAL | Vim mode, ha aktiv |
+| ⚙ vX.Y.Z | Claude Code verzio (halvany szurke, full profil) |
 
 ## Szinek
 
@@ -555,7 +571,7 @@ A 🤖 modellnev tier szerint szinezve, hogy egy pillantasra lasd, melyik modell
 - 🔵 Kek: **Sonnet**
 - 🟢 Zold: **Haiku**
 
-A talalat kis/nagybetu-fuggetlenul a `model.display_name` tier-szavara megy, igy az uj verziok kodmodositas nelkul szinezodnek.
+A talalat kis/nagybetu-fuggetlenul a `model.display_name` tier-szavara megy, fallbackkent a `model.id`-re (pl. `claude-fable-5`) — igy az uj verziok es atnevezett display name-ek is kodmodositas nelkul szinezodnek.
 
 ## Profilok
 
@@ -758,7 +774,7 @@ A sessionben hozzaadott/torolt sorok osszege. `±0` ha nincs valtozas.
 
 ### Rate limits (csak Pro/Max)
 
-A Claude.ai 5 oras es 7 napos rate limit hasznalatot mutatja (`📊 5h:42% 7d:87%`), ha a `rate_limits` mezo jelen van. Csak a `full` profilban.
+A Claude.ai 5 oras es 7 napos rate limit hasznalatot mutatja (`📊 5h:42% 7d:87%`), ha a `rate_limits` mezo jelen van. Csak a `full` profilban. Az ertekek szinezettek: 60% alatt sima, 60–79% sarga, 80%-tol piros — igy meg a limit elerese elott feltunik, hogy kozeledsz hozza.
 
 ### Worktree es agent jelzok
 
@@ -812,12 +828,13 @@ Claude Code  ── JSON a stdin-en ──▶  statusline.sh
 | (Xk/Xk) | Tokenek (hasznalt/osszes) | `used_percentage * context_window_size` / `context_window_size` |
 | ⏱ | Session idotartam | `cost.total_duration_ms` — formatum: Xs, XmXs, vagy XhXm |
 | 📡 N | API hivasok szama | `"type":"assistant"` bejegyzesek szama a transcript JSONL-ben |
-| 📊 5h:X% 7d:Y% | Rate limits | `rate_limits.five_hour` / `rate_limits.seven_day` — csak Pro/Max (full profil) |
+| 📊 5h:X% 7d:Y% | Rate limits | `rate_limits.five_hour` / `rate_limits.seven_day` — csak Pro/Max, ertekenkent szinezve: 🟡 ≥60%, 🔴 ≥80% (full profil) |
 | +X/-Y | Sorok valtozasa | `cost.total_lines_added` / `cost.total_lines_removed` — zold/piros |
 | 🌿 | Git branch | `git branch --show-current`, `*` = nem commitolt valtozasok |
 | 📁 | Projekt mappa | `basename` a `workspace.current_dir`-bol |
 | 🌳 | Git worktree | `worktree.name` vagy `workspace.git_worktree` (full profil) |
 | ⌨ | Vim mode | `vim.mode` — `NORMAL` / `INSERT` (full profil) |
+| ⚙ vX.Y.Z | Claude Code verzio | `version` a JSON bemenetbol — halvany szurke (full profil) |
 | │ | Elvalaszto | Vizualis hatarolo a szekciok kozott |
 
 ## Testreszabas
@@ -833,6 +850,17 @@ A `statusline.sh`-ban modosithatod:
 Lasd az `examples/minimal.sh`-t egy lecsupasztott valtozathoz.
 
 ## Fejlesztes es hozzajarulas
+
+### Melyik verzio van kitelepitve?
+
+A script hordozza a sajat verziojat, es stdin nelkul is valaszol — hasznos, ha tobb gepen van kitelepitve a `~/.claude/statusline.sh`:
+
+```bash
+~/.claude/statusline.sh --version
+# claude-code-statusline v0.3.0
+```
+
+Vesd ossze a repo `statusline.sh`-javal (vagy a Changeloggal), hogy lasd, elavult-e egy kitelepitett peldany.
 
 ### Helyi teszt Claude Code nelkul
 

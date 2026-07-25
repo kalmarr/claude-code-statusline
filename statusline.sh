@@ -13,9 +13,20 @@
 #   STATUSLINE_PROFILE=full       + rate_limits, worktree, vim, exceeds_200k (default)
 #   STATUSLINE_LAYOUT=1           Single line (default)
 #   STATUSLINE_LAYOUT=2           Two lines: identity row + metrics row
+#
+# CLI: statusline.sh --version    Print the deployed script version and exit
 
 # Force C locale for consistent number formatting
 export LC_ALL=C
+
+STATUSLINE_VERSION="0.3.0"
+
+# --version: print version and exit — must run before reading stdin,
+# so it works from a plain shell without piped input.
+if [ "${1:-}" = "--version" ] || [ "${1:-}" = "-v" ]; then
+    echo "claude-code-statusline v${STATUSLINE_VERSION}"
+    exit 0
+fi
 
 # Feature profile (minimal | standard | full)
 STATUSLINE_PROFILE="${STATUSLINE_PROFILE:-full}"
@@ -32,6 +43,8 @@ data=$(cat)
 # === EXTRACT ALL DATA IN ONE JQ CALL ===
 eval "$(echo "$data" | jq -r '
   @sh "model=\(.model.display_name // "?")",
+  @sh "model_id=\(.model.id // "")",
+  @sh "cc_version=\(.version // "")",
   @sh "cost=\(.cost.total_cost_usd // 0)",
   @sh "duration_ms=\(.cost.total_duration_ms // 0)",
   @sh "lines_added=\(.cost.total_lines_added // 0)",
@@ -53,10 +66,11 @@ eval "$(echo "$data" | jq -r '
 # === MODEL TIER COLOR ===
 # Fable/Mythos = frontier ($10/$50), Opus = premium ($5/$25),
 # Sonnet = balanced ($3/$15), Haiku = fast/cheap ($1/$5).
-# model is model.display_name (e.g. "Fable 5", "Opus 5") — matched
-# case-insensitively on the tier word, so future versions colorize
+# Matched case-insensitively on the tier word in model.display_name
+# (e.g. "Fable 5", "Opus 5"), with model.id (e.g. "claude-fable-5") as
+# fallback — so future versions and renamed display names colorize
 # without code changes.
-case "${model,,}" in
+case "${model,,} ${model_id,,}" in
     *fable*|*mythos*) model_colored="\033[1;33m${model}\033[0m" ;;  # bold gold (frontier)
     *opus*)           model_colored="\033[1;35m${model}\033[0m" ;;  # bold magenta (premium)
     *sonnet*)         model_colored="\033[34m${model}\033[0m"   ;;  # blue
@@ -191,6 +205,14 @@ wt_info=""
 vim_info=""
 warn_info=""
 rate_info=""
+ccv_info=""
+
+# Rate-limit % coloring: red ≥80, yellow ≥60, plain below
+rl_pct() {
+    if [ "$1" -ge 80 ]; then printf '\033[31m%d%%\033[0m' "$1"
+    elif [ "$1" -ge 60 ]; then printf '\033[33m%d%%\033[0m' "$1"
+    else printf '%d%%' "$1"; fi
+}
 
 if [ "$STATUSLINE_PROFILE" = "standard" ] || [ "$STATUSLINE_PROFILE" = "full" ]; then
     [ "$output_style" != "default" ] && [ -n "$output_style" ] && style_info="🎨 ${output_style}"
@@ -212,9 +234,12 @@ if [ "$STATUSLINE_PROFILE" = "full" ]; then
     fi
 
     rl_parts=""
-    [ -n "$rate_5h" ] && rl_parts="5h:$(printf '%.0f' "$rate_5h")%"
-    [ -n "$rate_7d" ] && rl_parts="${rl_parts:+$rl_parts }7d:$(printf '%.0f' "$rate_7d")%"
+    [ -n "$rate_5h" ] && rl_parts="5h:$(rl_pct "$(printf '%.0f' "$rate_5h")")"
+    [ -n "$rate_7d" ] && rl_parts="${rl_parts:+$rl_parts }7d:$(rl_pct "$(printf '%.0f' "$rate_7d")")"
     [ -n "$rl_parts" ] && rate_info="📊 ${rl_parts}"
+
+    # Claude Code version — dim gray so it doesn't compete for attention
+    [ -n "$cc_version" ] && ccv_info="\033[90m⚙ v${cc_version}\033[0m"
 fi
 
 # === OUTPUT ===
@@ -239,6 +264,7 @@ elif [ "$STATUSLINE_LAYOUT" = "2" ]; then
     row1="${row1} │ 🌿 ${git_info} │ 📁 ${project_dir}"
     [ -n "$wt_info" ]    && row1="${row1} │ ${wt_info}"
     [ -n "$vim_info" ]   && row1="${row1} │ ${vim_info}"
+    [ -n "$ccv_info" ]   && row1="${row1} │ ${ccv_info}"
 
     row2="${cost_formatted} │ ${tokens_info} │ ${duration_str}"
     [ -n "$api_info" ]   && row2="${row2} │ ${api_info}"
@@ -266,6 +292,7 @@ else
 
     [ -n "$wt_info" ]  && output="${output} │ ${wt_info}"
     [ -n "$vim_info" ] && output="${output} │ ${vim_info}"
+    [ -n "$ccv_info" ] && output="${output} │ ${ccv_info}"
 
     printf "%b" "$output"
 fi

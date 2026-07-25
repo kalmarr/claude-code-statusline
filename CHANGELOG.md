@@ -3,9 +3,17 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.3.0]
 
 ### Added
+- **`--version` flag** — the script now carries its own version
+  (`STATUSLINE_VERSION`) and `statusline.sh --version` prints it without
+  needing stdin, so you can tell at a glance which version is deployed on
+  any machine.
+- **Claude Code version segment** — `⚙ vX.Y.Z` (dim gray, full profile),
+  read from the `version` field of the stdin JSON.
+- **Rate-limit coloring** — the `📊 5h:X% 7d:Y%` values turn yellow at ≥60%
+  and red at ≥80%, so approaching a limit is visible before hitting it.
 - **Fable/Mythos tier color** — the new Claude 5 frontier tier (Fable 5,
   Mythos 5) is shown in bold gold, above Opus's magenta.
 - **Model-tier coloring** for the `🤖` model name — Opus is bold magenta (premium
@@ -18,6 +26,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   visibility matrix, Development/Contributing guide, FAQ, and this changelog.
 
 ### Changed
+- Tier detection now falls back to **`model.id`** (e.g. `claude-fable-5`)
+  when the tier word isn't found in `model.display_name` — more robust
+  against display-name changes.
 - Model-tier matching is now truly **case-insensitive** (`${model,,}` +
   lowercase glob patterns), as the comment always promised.
 - Docs updated to the Claude 5 family: 1M context is now standard on Fable 5,
