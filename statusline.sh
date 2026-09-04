@@ -3,14 +3,16 @@
 # Claude Code Statusline - Informative status bar for Claude Code CLI
 # https://github.com/kalmarr/claude-code-statusline
 #
-# Shows: Model, Permission Mode, Cost, Context Window, Duration, API Calls,
-#        Fast Mode, Lines Changed, Git Branch, Project Folder, and more.
+# Shows: Model, Effort Level, Permission Mode, Cost, Context Window, Duration,
+#        API Calls, Fast Mode, Prompt Cache, PR, Lines Changed, Git Branch,
+#        Project Folder, and more.
 #
 # Config via env vars:
 #   DEBUG=1                       Save raw JSON input to ~/.claude/debug_status.json
-#   STATUSLINE_PROFILE=minimal    Only permission mode + base fields
+#   STATUSLINE_PROFILE=minimal    Only effort + permission mode + base fields
 #   STATUSLINE_PROFILE=standard   + output_style, agent, session_name
-#   STATUSLINE_PROFILE=full       + rate_limits, worktree, vim, exceeds_200k (default)
+#   STATUSLINE_PROFILE=full       + rate_limits, worktree, vim, exceeds_200k,
+#                                   prompt_cache, pr (default)
 #   STATUSLINE_LAYOUT=1           Single line (default)
 #   STATUSLINE_LAYOUT=2           Two lines: identity row + metrics row
 #
@@ -19,7 +21,7 @@
 # Force C locale for consistent number formatting
 export LC_ALL=C
 
-STATUSLINE_VERSION="0.3.0"
+STATUSLINE_VERSION="0.4.0"
 
 # --version: print version and exit — must run before reading stdin,
 # so it works from a plain shell without piped input.
@@ -60,7 +62,15 @@ eval "$(echo "$data" | jq -r '
   @sh "vim_mode=\(.vim.mode // "")",
   @sh "exceeds_200k=\(.exceeds_200k_tokens // false)",
   @sh "rate_5h=\(.rate_limits.five_hour.used_percentage // "")",
-  @sh "rate_7d=\(.rate_limits.seven_day.used_percentage // "")"
+  @sh "rate_7d=\(.rate_limits.seven_day.used_percentage // "")",
+  @sh "fast_mode=\(.fast_mode // false)",
+  @sh "effort=\(.effort.level // "")",
+  @sh "cache_warm=\(.prompt_cache.warm // "")",
+  @sh "cache_hit=\(if .prompt_cache.hit_ratio == null then "" else (.prompt_cache.hit_ratio * 100 | round) end)",
+  @sh "cache_req=\(.prompt_cache.requests // 0)",
+  @sh "pr_number=\(.pr.number // "")",
+  @sh "pr_state=\(.pr.review_state // "")",
+  @sh "pr_kind=\(.pr.kind // "")"
 ')"
 
 # === MODEL TIER COLOR ===
@@ -77,6 +87,28 @@ case "${model,,} ${model_id,,}" in
     *haiku*)          model_colored="\033[32m${model}\033[0m"   ;;  # green
     *)                model_colored="${model}"                  ;;  # unknown → no color
 esac
+
+# === EFFORT LEVEL ===
+# effort.level is the live session value (follows /effort). It is absent when
+# the model doesn't support the effort parameter, so nothing is shown then.
+# On Fable/Mythos thinking is always on and effort is the only tuning knob,
+# which makes this the most useful model-level indicator there.
+effort_info=""
+case "$effort" in
+    max)    effort_info="\033[1;31m🧠 max\033[0m"    ;;  # bold red — maximum spend
+    xhigh)  effort_info="\033[1;35m🧠 xhigh\033[0m"  ;;  # bold magenta — agentic sweet spot
+    high)   effort_info="🧠 high"                    ;;  # plain — default
+    medium) effort_info="\033[90m🧠 medium\033[0m"   ;;  # dim
+    low)    effort_info="\033[90m🧠 low\033[0m"      ;;  # dim
+    "")     effort_info=""                           ;;  # not supported by model → silent
+    *)      effort_info="🧠 ${effort}"               ;;  # unknown level → show as-is
+esac
+
+# === FAST MODE ===
+# Native stdin field. Only Opus 5 / Opus 4.8 support /fast; on every other
+# model (Fable, Mythos, Sonnet, Haiku) the badge is simply absent.
+speed_info=""
+[ "$fast_mode" = "true" ] && speed_info="\033[33m⚡FAST\033[0m"
 
 # === PROJECT FOLDER ===
 project_dir=$(basename "$cwd" 2>/dev/null)
@@ -138,30 +170,13 @@ else
     duration_str="⏱ ${total_secs}s"
 fi
 
-# === TRANSCRIPT DATA (API calls + Fast mode + Permission mode) ===
+# === TRANSCRIPT DATA (API calls + Permission mode) ===
 api_info=""
-speed_info=""
 perm_info=""
 if [ -f "$transcript" ]; then
     api_count=$(grep -c '"type":"assistant"' "$transcript" 2>/dev/null)
     api_count=${api_count:-0}
     [ "$api_count" -gt 0 ] && api_info="📡 ${api_count}"
-
-    # Fast mode: check /fast toggle event (primary), speed field (fallback)
-    fast_toggle=$(tac "$transcript" | grep -m1 -oP 'Fast mode \K(ON|OFF)' 2>/dev/null)
-    if [ "$fast_toggle" = "ON" ]; then
-        speed_info="\033[33m⚡FAST\033[0m"
-    elif [ "$fast_toggle" = "OFF" ]; then
-        speed_info="\033[90mSTD\033[0m"
-    else
-        # No toggle found → fallback to API speed field
-        speed_mode=$(tac "$transcript" | grep -m1 -oP '"speed"\s*:\s*"\K[^"]*' 2>/dev/null)
-        if [ "$speed_mode" = "fast" ]; then
-            speed_info="\033[33m⚡FAST\033[0m"
-        else
-            speed_info="\033[90mSTD\033[0m"
-        fi
-    fi
 
     # Permission mode: stdin JSON doesn't carry it, so read the last change
     # from the transcript. Claude Code logs both "plan" entries and the
@@ -206,12 +221,21 @@ vim_info=""
 warn_info=""
 rate_info=""
 ccv_info=""
+cache_info=""
+pr_info=""
 
 # Rate-limit % coloring: red ≥80, yellow ≥60, plain below
 rl_pct() {
     if [ "$1" -ge 80 ]; then printf '\033[31m%d%%\033[0m' "$1"
     elif [ "$1" -ge 60 ]; then printf '\033[33m%d%%\033[0m' "$1"
     else printf '%d%%' "$1"; fi
+}
+
+# Prompt-cache hit-ratio coloring (inverse of rl_pct): green ≥80, yellow ≥50, red below
+cache_pct() {
+    if [ "$1" -ge 80 ]; then printf '\033[32m%d%%\033[0m' "$1"
+    elif [ "$1" -ge 50 ]; then printf '\033[33m%d%%\033[0m' "$1"
+    else printf '\033[31m%d%%\033[0m' "$1"; fi
 }
 
 if [ "$STATUSLINE_PROFILE" = "standard" ] || [ "$STATUSLINE_PROFILE" = "full" ]; then
@@ -240,35 +264,63 @@ if [ "$STATUSLINE_PROFILE" = "full" ]; then
 
     # Claude Code version — dim gray so it doesn't compete for attention
     [ -n "$cc_version" ] && ccv_info="\033[90m⚙ v${cc_version}\033[0m"
+
+    # Prompt cache: hit ratio of the main conversation. "cold" when the cache
+    # has expired (1h TTL) — the next request will re-write the whole prefix.
+    if [ -n "$cache_hit" ] && [ "${cache_req:-0}" -gt 0 ]; then
+        if [ "$cache_warm" = "true" ]; then
+            cache_info="💾 $(cache_pct "$cache_hit")"   # cache_hit is already 0–100 (rounded in jq)
+        else
+            cache_info="\033[90m💾 cold\033[0m"
+        fi
+    fi
+
+    # Open PR / MR on the current branch, colored by review state.
+    # GitLab merge requests use the "!" prefix, GitHub PRs "#".
+    if [ -n "$pr_number" ]; then
+        pr_prefix="#"
+        [ "$pr_kind" = "mr" ] && pr_prefix="!"
+        case "$pr_state" in
+            approved)          pr_info="\033[32m🔀 ${pr_prefix}${pr_number}\033[0m" ;;  # green
+            changes_requested) pr_info="\033[31m🔀 ${pr_prefix}${pr_number}\033[0m" ;;  # red
+            draft)             pr_info="\033[90m🔀 ${pr_prefix}${pr_number}\033[0m" ;;  # dim
+            *)                 pr_info="🔀 ${pr_prefix}${pr_number}"                ;;  # pending / unknown
+        esac
+    fi
 fi
 
 # === OUTPUT ===
 
 if [ "$STATUSLINE_PROFILE" = "minimal" ]; then
-    # Compact single line: model + permission mode + cost + bar% + duration + git + folder.
-    # Drop speed (FAST/STD), API count, line diff, and token detail for space.
+    # Compact single line: model + effort + permission mode + cost + bar% + duration + git + folder.
+    # Drop speed (FAST), API count, line diff, and token detail for space.
     # LAYOUT=2 is ignored here — minimal is always one line by design.
     output="🤖 ${model_colored}"
-    [ -n "$perm_info" ] && output="${output} ${perm_info}"
+    [ -n "$effort_info" ] && output="${output} ${effort_info}"
+    [ -n "$perm_info" ]   && output="${output} ${perm_info}"
     output="${output} │ ${cost_formatted} │ ${tokens_info} │ ${duration_str}"
     output="${output} │ 🌿 ${git_info} │ 📁 ${project_dir}"
     printf "%b" "$output"
 elif [ "$STATUSLINE_LAYOUT" = "2" ]; then
     # Two-line layout — identity on row 1, metrics on row 2.
     row1="🤖 ${model_colored}"
-    [ -n "$speed_info" ] && row1="${row1} ${speed_info}"
-    [ -n "$perm_info" ]  && row1="${row1} ${perm_info}"
-    [ -n "$style_info" ] && row1="${row1} │ ${style_info}"
-    [ -n "$agent_info" ] && row1="${row1} │ ${agent_info}"
-    [ -n "$sess_info" ]  && row1="${row1} │ ${sess_info}"
-    row1="${row1} │ 🌿 ${git_info} │ 📁 ${project_dir}"
-    [ -n "$wt_info" ]    && row1="${row1} │ ${wt_info}"
-    [ -n "$vim_info" ]   && row1="${row1} │ ${vim_info}"
-    [ -n "$ccv_info" ]   && row1="${row1} │ ${ccv_info}"
+    [ -n "$speed_info" ]  && row1="${row1} ${speed_info}"
+    [ -n "$effort_info" ] && row1="${row1} ${effort_info}"
+    [ -n "$perm_info" ]   && row1="${row1} ${perm_info}"
+    [ -n "$style_info" ]  && row1="${row1} │ ${style_info}"
+    [ -n "$agent_info" ]  && row1="${row1} │ ${agent_info}"
+    [ -n "$sess_info" ]   && row1="${row1} │ ${sess_info}"
+    row1="${row1} │ 🌿 ${git_info}"
+    [ -n "$pr_info" ]     && row1="${row1} ${pr_info}"
+    row1="${row1} │ 📁 ${project_dir}"
+    [ -n "$wt_info" ]     && row1="${row1} │ ${wt_info}"
+    [ -n "$vim_info" ]    && row1="${row1} │ ${vim_info}"
+    [ -n "$ccv_info" ]    && row1="${row1} │ ${ccv_info}"
 
     row2="${cost_formatted} │ ${tokens_info} │ ${duration_str}"
-    [ -n "$api_info" ]   && row2="${row2} │ ${api_info}"
-    [ -n "$rate_info" ]  && row2="${row2} │ ${rate_info}"
+    [ -n "$api_info" ]    && row2="${row2} │ ${api_info}"
+    [ -n "$cache_info" ]  && row2="${row2} │ ${cache_info}"
+    [ -n "$rate_info" ]   && row2="${row2} │ ${rate_info}"
     [ -n "$warn_info" ]  && row2="${row2} │ ${warn_info}"
     row2="${row2} │ ${lines_info}"
 
@@ -276,19 +328,23 @@ elif [ "$STATUSLINE_LAYOUT" = "2" ]; then
 else
     # Single-line layout (default, backward-compatible)
     output="🤖 ${model_colored}"
-    [ -n "$speed_info" ] && output="${output} ${speed_info}"
-    [ -n "$perm_info" ]  && output="${output} ${perm_info}"
-    [ -n "$style_info" ] && output="${output} │ ${style_info}"
-    [ -n "$agent_info" ] && output="${output} │ ${agent_info}"
-    [ -n "$sess_info" ]  && output="${output} │ ${sess_info}"
-    [ -n "$warn_info" ]  && output="${output} │ ${warn_info}"
+    [ -n "$speed_info" ]  && output="${output} ${speed_info}"
+    [ -n "$effort_info" ] && output="${output} ${effort_info}"
+    [ -n "$perm_info" ]   && output="${output} ${perm_info}"
+    [ -n "$style_info" ]  && output="${output} │ ${style_info}"
+    [ -n "$agent_info" ]  && output="${output} │ ${agent_info}"
+    [ -n "$sess_info" ]   && output="${output} │ ${sess_info}"
+    [ -n "$warn_info" ]   && output="${output} │ ${warn_info}"
 
     output="${output} │ ${cost_formatted} │ ${tokens_info} │ ${duration_str}"
 
-    [ -n "$api_info" ]  && output="${output} │ ${api_info}"
-    [ -n "$rate_info" ] && output="${output} │ ${rate_info}"
+    [ -n "$api_info" ]    && output="${output} │ ${api_info}"
+    [ -n "$cache_info" ]  && output="${output} │ ${cache_info}"
+    [ -n "$rate_info" ]   && output="${output} │ ${rate_info}"
 
-    output="${output} │ ${lines_info} │ 🌿 ${git_info} │ 📁 ${project_dir}"
+    output="${output} │ ${lines_info} │ 🌿 ${git_info}"
+    [ -n "$pr_info" ]     && output="${output} ${pr_info}"
+    output="${output} │ 📁 ${project_dir}"
 
     [ -n "$wt_info" ]  && output="${output} │ ${wt_info}"
     [ -n "$vim_info" ] && output="${output} │ ${vim_info}"

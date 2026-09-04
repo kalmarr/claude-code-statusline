@@ -11,14 +11,14 @@ A customizable, informative status bar for the [Claude Code](https://docs.anthro
 **Single line** (default):
 
 ```
-🤖 Opus 5 ⚡FAST 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ +12/-3 │ 🌿 main │ 📁 my-project
+🤖 Fable 5.1 🧠 xhigh 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ 💾 91% │ +12/-3 │ 🌿 main 🔀 #42 │ 📁 my-project
 ```
 
 **Two lines** (`STATUSLINE_LAYOUT=2`) — identity on top, metrics below:
 
 ```
-🤖 Opus 5 ⚡FAST 📋 PLAN │ 🌿 main │ 📁 my-project
-$0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ +12/-3
+🤖 Fable 5.1 🧠 xhigh 📋 PLAN │ 🌿 main 🔀 #42 │ 📁 my-project
+$0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ 💾 91% │ +12/-3
 ```
 
 ## Table of contents
@@ -46,21 +46,24 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (24
 
 | Indicator | Description |
 |-----------|-------------|
-| 🤖 Model | Current model, colored by tier — Fable/Mythos gold, Opus magenta, Sonnet blue, Haiku green (Fable 5, Opus 5, Sonnet 5, etc.) |
-| ⚡FAST / STD | Fast mode indicator |
+| 🤖 Model | Current model, colored by tier — Fable/Mythos gold, Opus magenta, Sonnet blue, Haiku green (Fable 5.1, Opus 5, Sonnet 5, etc.) |
+| ⚡FAST | Fast mode active — shown only when `/fast` is on (Opus 5 / Opus 4.8) |
+| 🧠 xhigh | Reasoning effort level (`low` … `max`, follows `/effort`) — `max` red, `xhigh` magenta, `low`/`medium` dim |
 | 📋 PLAN / 🚀 AUTO / ✅ EDIT / ⚠️ YOLO | Permission mode (read from transcript — `default` is silent) |
 | 🎨 style | Output style (when not default) |
 | 🤝 agent | Active subagent name |
 | 📛 name | Custom session name (set via `--name` / `/rename`) |
-| ⚠️ 200k+ / 📚 long-ctx | Token threshold crossed: red `⚠️ 200k+` on 200k models like Haiku 4.5 (at the ceiling), cyan `📚 long-ctx` on 1M-context models — Fable 5, Opus 5/4.x, Sonnet 5/4.6 (informational) |
+| ⚠️ 200k+ / 📚 long-ctx | Token threshold crossed: red `⚠️ 200k+` on 200k models like Haiku 4.5 (at the ceiling), cyan `📚 long-ctx` on 1M-context models — Fable 5.1/5, Opus 5/4.x, Sonnet 5/4.6 (informational) |
 | $X.XX | Session cost (API users: actual cost, Pro/Max: $0.00) |
 | [████░░] X% | Context window usage with color-coded progress bar |
 | (Xk/200k) | Token usage (used/total) |
 | ⏱ Xm | Session duration |
 | 📡 N | Number of API calls in this session |
+| 💾 X% | Prompt-cache hit ratio — green ≥80%, yellow ≥50%, red below; dim `💾 cold` when the cache has expired |
 | 📊 5h:X% 7d:Y% | Claude.ai Pro/Max rate limit usage — yellow at ≥60%, red at ≥80% |
 | +X/-Y | Lines added/removed |
 | 🌿 branch | Current git branch (* = uncommitted changes) |
+| 🔀 #123 | Open pull request on the branch (`!123` for GitLab MRs) — green approved, red changes requested, dim draft |
 | 📁 folder | Current project folder |
 | 🌳 worktree | Active git worktree name |
 | ⌨ NORMAL | Vim mode when enabled |
@@ -80,12 +83,23 @@ The progress bar changes color with usage:
 
 The 🤖 model name is colored by tier so you can tell at a glance which model (and price point) you're on:
 
-- 🟡 Gold (bold): **Fable / Mythos** — frontier tier (e.g. Fable 5)
+- 🟡 Gold (bold): **Fable / Mythos** — frontier tier (e.g. Fable 5.1, Mythos 5.1, Fable 5)
 - 🟣 Magenta (bold): **Opus** — premium tier (e.g. Opus 5, Opus 4.8)
 - 🔵 Blue: **Sonnet**
 - 🟢 Green: **Haiku**
 
-Matching is case-insensitive on the tier word in `model.display_name`, with `model.id` (e.g. `claude-fable-5`) as fallback — so new versions and renamed display names are colored automatically with no code change.
+Matching is case-insensitive on the tier word in `model.display_name`, with `model.id` (e.g. `claude-fable-5-1`) as fallback — so new versions and renamed display names are colored automatically with no code change.
+
+### Effort level colors
+
+The 🧠 effort badge (from `effort.level`) is colored by how much the model will spend on reasoning:
+
+- 🔴 Red (bold): **max**
+- 🟣 Magenta (bold): **xhigh** — the default in Claude Code for coding / agentic work
+- ⚪ Plain: **high**
+- ⚫ Dim: **medium** / **low**
+
+On Fable and Mythos thinking is always on, so effort is the only tuning knob — the badge is where you see a `/effort` change take hold. The badge is absent on models that don't support the effort parameter.
 
 ## Profiles
 
@@ -93,9 +107,9 @@ The `STATUSLINE_PROFILE` env var controls how much is shown. Default is `full`.
 
 | Profile | Includes |
 |---------|----------|
-| `minimal` | Base fields + permission mode (single line by design) |
-| `standard` | + speed, output style, agent, session name, API count, lines |
-| `full` (default) | + rate limits, worktree, vim mode, 200k+ / long-ctx |
+| `minimal` | Base fields + effort + permission mode (single line by design) |
+| `standard` | + fast mode, output style, agent, session name, API count, lines |
+| `full` (default) | + rate limits, prompt cache, PR badge, worktree, vim mode, 200k+ / long-ctx |
 
 Set it in `~/.claude/settings.json`:
 
@@ -108,7 +122,7 @@ Set it in `~/.claude/settings.json`:
 The `STATUSLINE_LAYOUT` env var controls line count:
 
 - `1` (default) — single line
-- `2` — two lines. **Row 1** (identity): model, speed, permission mode, output style, agent, session name, git branch, project folder, worktree, vim. **Row 2** (metrics): cost, context bar + tokens, duration, API count, rate limits, 200k+ / long-ctx, lines changed.
+- `2` — two lines. **Row 1** (identity): model, fast mode, effort, permission mode, output style, agent, session name, git branch + PR, project folder, worktree, vim. **Row 2** (metrics): cost, context bar + tokens, duration, API count, prompt cache, rate limits, 200k+ / long-ctx, lines changed.
 
 Recommended with the `full` profile to avoid horizontal wrapping on narrow terminals. The `minimal` profile ignores this setting and stays one line by design.
 
@@ -129,7 +143,8 @@ Which segments appear in each profile. Segments also self-hide when their data i
 | Segment | `minimal` | `standard` | `full` |
 |---------|:---------:|:----------:|:------:|
 | 🤖 model (tier-colored) | ✅ | ✅ | ✅ |
-| ⚡FAST / STD speed | ➖ | ✅ | ✅ |
+| ⚡FAST fast mode | ➖ | ✅ | ✅ |
+| 🧠 effort level | ✅ | ✅ | ✅ |
 | 📋/🚀/✅/⚠️ permission mode | ✅ | ✅ | ✅ |
 | 🎨 output style | ➖ | ✅ | ✅ |
 | 🤝 agent | ➖ | ✅ | ✅ |
@@ -143,9 +158,12 @@ Which segments appear in each profile. Segments also self-hide when their data i
 | 🌿 git branch | ✅ | ✅ | ✅ |
 | 📁 folder | ✅ | ✅ | ✅ |
 | 📊 rate limits | ➖ | ➖ | ✅ |
+| 💾 prompt cache | ➖ | ➖ | ✅ |
+| 🔀 PR badge | ➖ | ➖ | ✅ |
 | 🌳 worktree | ➖ | ➖ | ✅ |
 | ⌨ vim mode | ➖ | ➖ | ✅ |
 | ⚠️ 200k+ / 📚 long-ctx | ➖ | ➖ | ✅ |
+| ⚙ Claude Code version | ➖ | ➖ | ✅ |
 
 ✅ = shown when data is present · ➖ = not shown in this profile
 
@@ -256,11 +274,23 @@ This saves the raw JSON input to `~/.claude/debug_status.json` on every update. 
 
 ### Fast mode indicator
 
-When you toggle `/fast` in Claude Code, the statusline shows `⚡FAST` in yellow next to the model name. It reads the transcript file for the last `Fast mode ON/OFF` event, falling back to the `"speed"` field. `/fast` is available on Opus 5 and Opus 4.8 (it was removed from Opus 4.7).
+When you toggle `/fast` in Claude Code, the statusline shows `⚡FAST` in yellow next to the model name, read from the native `fast_mode` stdin field. When fast mode is off nothing is shown (the old gray `STD` badge is gone — it carried no information). `/fast` is available on Opus 5 and Opus 4.8 only; Fable, Mythos, Sonnet and Haiku have no fast mode, so the badge never appears there.
+
+### Effort level
+
+`🧠 xhigh` shows the live reasoning-effort level from the `effort.level` stdin field — it follows `/effort` changes mid-session and is colored by cost: `max` bold red, `xhigh` bold magenta, `high` plain, `medium`/`low` dim. Shown in every profile because it's a property of the model, like the permission mode. On Fable 5.1 / Mythos 5.1 thinking is always on and effort is the only knob that changes how hard the model works, so this is the badge to watch there. Absent on models that don't support the effort parameter (Claude Code omits the field).
+
+### Prompt cache
+
+`💾 91%` shows the prompt-cache hit ratio of the main conversation from the `prompt_cache` stdin field: green ≥80%, yellow ≥50%, red below. When the cache has gone cold (the 1-hour TTL expired — the next request re-writes the whole prefix) it shows a dim `💾 cold` instead. Only in the `full` profile, and only once at least one request has been made.
+
+### PR badge
+
+`🔀 #1234` appears next to the git branch while an open pull request exists for it (`pr.number`), colored by `pr.review_state`: green `approved`, red `changes_requested`, dim `draft`, plain `pending`. GitLab merge requests use the `!` prefix (`🔀 !1234`). Only in the `full` profile; disappears once the PR merges or closes.
 
 ### Permission mode indicator
 
-The Claude Code stdin JSON does **not** include the current permission mode — only `vim.mode`, `output_style.name`, and `agent.name` are exposed. The statusline reads the last `{"type":"permission-mode","permissionMode":"..."}` entry from the transcript JSONL to detect the active mode:
+The Claude Code stdin JSON does **not** include the current permission mode. The statusline reads the last `{"type":"permission-mode","permissionMode":"..."}` entry from the transcript JSONL to detect the active mode:
 
 - 📋 **PLAN** (yellow) — read-only planning mode (Shift+Tab)
 - 🚀 **AUTO** (blue) — autonomous execution mode
@@ -276,7 +306,7 @@ A 20-character progress bar (10 in the `minimal` profile) that changes color bas
 
 ### 1M-context awareness (Claude 5 family)
 
-All current models — Fable 5, Opus 5/4.8/4.7/4.6, Sonnet 5, Sonnet 4.6 — have a 1M-token context window, where crossing 200k tokens is routine, not a warning — so the bar shows an informational cyan `📚 long-ctx` badge. On 200k-context models (Haiku 4.5), crossing 200k is the real ceiling and stays a red `⚠️ 200k+`. The distinction is data-driven (`context_window_size > 200000`), so it works for future models automatically.
+All current models — Fable 5.1/5, Mythos 5.1, Opus 5/4.8/4.7/4.6, Sonnet 5, Sonnet 4.6 — have a 1M-token context window, where crossing 200k tokens is routine, not a warning — so the bar shows an informational cyan `📚 long-ctx` badge. On 200k-context models (Haiku 4.5), crossing 200k is the real ceiling and stays a red `⚠️ 200k+`. The distinction is data-driven (`context_window_size > 200000`), so it works for future models automatically.
 
 ### Git integration
 
@@ -307,7 +337,7 @@ Claude Code  ── pipes JSON on stdin ──▶  statusline.sh
                                               │
    1. data=$(cat)                  read entire stdin into $data
    2. one jq call                  extract model, cost, ctx %, sizes, dirs, flags …
-   3. read transcript JSONL        permission mode, fast mode, API call count
+   3. read transcript JSONL        permission mode, API call count
    4. compute locally              git branch + dirty flag, duration, colors, bar
    5. assemble per profile/layout  build the ANSI string(s)
                                               │
@@ -317,18 +347,23 @@ Claude Code  ── pipes JSON on stdin ──▶  statusline.sh
 
 **One `jq` call.** All stdin fields are extracted in a single `jq -r` invocation using `@sh` quoting, then `eval`'d into shell variables. `@sh` shell-quotes every interpolated value, so even though stdin is untrusted, the `eval` is injection-safe.
 
-**Why it reads the transcript.** The stdin JSON does not expose the **permission mode**, the **fast-mode** state, or the **API call count**. The script tails the session transcript JSONL (`transcript_path`) for:
+**Why it reads the transcript.** The stdin JSON does not expose the **permission mode** or the **API call count**. The script tails the session transcript JSONL (`transcript_path`) for:
 
 - the last `{"type":"permission-mode","permissionMode":"..."}` entry → permission mode
-- the last `Fast mode ON/OFF` event (fallback: `"speed":"fast"`) → fast mode
 - the count of `"type":"assistant"` entries → API call count
+
+Fast mode, effort level, prompt-cache stats and the open PR all come straight from stdin (`fast_mode`, `effort.level`, `prompt_cache`, `pr`) — no transcript parsing needed.
 
 **Refresh triggers.** The bar re-renders after each assistant message, on a permission-mode or vim-mode change, and every `refreshInterval` seconds. Each run does a couple of `tac | grep` reads over the transcript plus `git` calls — cheap, but it does run on the timer, so keep `refreshInterval` at 2s or higher.
 
 ### stdin JSON fields used
 
 - `model.display_name` — current model name (drives the tier color)
-- `model.id` — model ID (e.g. `claude-fable-5`) — fallback for tier detection
+- `model.id` — model ID (e.g. `claude-fable-5-1`) — fallback for tier detection
+- `fast_mode` — whether `/fast` is on (`⚡FAST`)
+- `effort.level` — live reasoning effort `low`/`medium`/`high`/`xhigh`/`max` (`🧠`); absent when unsupported
+- `prompt_cache.{warm,hit_ratio,requests}` — main-conversation cache stats (`💾`)
+- `pr.{number,review_state,kind}` — open PR / MR on the current branch (`🔀`)
 - `version` — Claude Code version (shown as `⚙ vX.Y.Z` in the full profile)
 - `cost.total_cost_usd` — session cost
 - `cost.total_duration_ms` — session duration
@@ -350,8 +385,8 @@ Claude Code  ── pipes JSON on stdin ──▶  statusline.sh
 | Icon | Meaning | Source / Logic |
 |------|---------|---------------|
 | 🤖 | Model name | `model.display_name` from Claude Code JSON input — colored by tier: Fable/Mythos = gold (frontier), Opus = magenta (premium), Sonnet = blue, Haiku = green |
-| ⚡FAST | Fast mode active (yellow) | Reads transcript JSONL: first checks for `Fast mode ON/OFF` toggle, falls back to `"speed":"fast"` field |
-| STD | Standard speed (gray) | Same as above, shown when not in fast mode |
+| ⚡FAST | Fast mode active (yellow) | `fast_mode` stdin field — shown only when `true` (Opus 5 / Opus 4.8) |
+| 🧠 level | Reasoning effort | `effort.level` — `max` bold red, `xhigh` bold magenta, `high` plain, `medium`/`low` dim; absent when the model has no effort parameter |
 | 📋 PLAN / 🚀 AUTO / ✅ EDIT / ⚠️ YOLO | Permission mode | Reads last `{"type":"permission-mode","permissionMode":"..."}` entry in transcript JSONL; `default` is silent |
 | 🎨 style | Output style | `output_style.name` — shown only when ≠ `default` (standard/full profile) |
 | 🤝 agent | Active subagent | `agent.name` — present only during `--agent` sessions (standard/full profile) |
@@ -362,9 +397,11 @@ Claude Code  ── pipes JSON on stdin ──▶  statusline.sh
 | (Xk/Xk) | Tokens used/total | Derived from `used_percentage * context_window_size` / `context_window_size` |
 | ⏱ | Session duration | `cost.total_duration_ms` — auto-formats: Xs, XmXs, or XhXm |
 | 📡 N | API call count | Counts `"type":"assistant"` entries in transcript JSONL |
+| 💾 X% / cold | Prompt cache | `prompt_cache.hit_ratio` × 100 — 🟢 ≥80%, 🟡 ≥50%, 🔴 below; dim `cold` when `prompt_cache.warm` is false (full profile) |
 | 📊 5h:X% 7d:Y% | Rate limits | `rate_limits.five_hour` / `rate_limits.seven_day` — Pro/Max only, per-value coloring: 🟡 ≥60%, 🔴 ≥80% (full profile) |
 | +X/-Y | Lines changed | `cost.total_lines_added` / `cost.total_lines_removed` — green/red colored |
 | 🌿 | Git branch | `git branch --show-current` in workspace dir, `*` suffix = uncommitted changes |
+| 🔀 #N / !N | Open PR / MR | `pr.number` (+ `pr.kind` = `mr` → `!`), colored by `pr.review_state`: 🟢 approved, 🔴 changes_requested, dim draft (full profile) |
 | 📁 | Project folder | `basename` of `workspace.current_dir` |
 | 🌳 | Git worktree | `worktree.name` or `workspace.git_worktree` (full profile) |
 | ⌨ | Vim mode | `vim.mode` — `NORMAL` / `INSERT` (full profile) |
@@ -391,7 +428,7 @@ The script carries its own version and answers without stdin — handy when it's
 
 ```bash
 ~/.claude/statusline.sh --version
-# claude-code-statusline v0.3.0
+# claude-code-statusline v0.4.0
 ```
 
 Compare with the repo's `statusline.sh` (or the [Changelog](#changelog)) to see if a deployed copy is stale.
@@ -401,11 +438,11 @@ Compare with the repo's `statusline.sh` (or the [Changelog](#changelog)) to see 
 The script reads a single JSON object on stdin, so you can feed it sample input directly:
 
 ```bash
-echo '{"model":{"display_name":"Fable 5"},"context_window":{"used_percentage":25,"context_window_size":1000000},"exceeds_200k_tokens":true,"cost":{"total_cost_usd":1.2},"workspace":{"current_dir":"'"$PWD"'"}}' \
+echo '{"model":{"display_name":"Fable 5.1","id":"claude-fable-5-1"},"effort":{"level":"xhigh"},"fast_mode":false,"prompt_cache":{"warm":true,"hit_ratio":0.91,"requests":14},"pr":{"number":42,"review_state":"approved"},"context_window":{"used_percentage":25,"context_window_size":1000000},"exceeds_200k_tokens":true,"cost":{"total_cost_usd":1.2},"workspace":{"current_dir":"'"$PWD"'"}}' \
   | STATUSLINE_LAYOUT=2 STATUSLINE_PROFILE=full ./statusline.sh
 ```
 
-Swap `display_name` to `Opus 5` / `Sonnet 5` / `Haiku 4.5` to see the tier colors, or set `context_window_size` to `200000` to see the red `⚠️ 200k+` instead of `📚 long-ctx`.
+Swap `display_name` to `Opus 5` / `Sonnet 5` / `Haiku 4.5` to see the tier colors, set `"fast_mode":true` for `⚡FAST`, change `effort.level` to `max` / `low`, set `"warm":false` for `💾 cold`, or set `context_window_size` to `200000` to see the red `⚠️ 200k+` instead of `📚 long-ctx`.
 
 ### Capture real input
 
@@ -438,7 +475,11 @@ Keep changes POSIX-friendly where possible, run `bash -n statusline.sh` before c
 
 **Cost shows `$0.00`** — That's expected for Claude.ai Pro/Max users — billing isn't per-request. API-key users see the real cost. Pro/Max users get the `📊` rate-limit segment instead.
 
-**The `📚 long-ctx` badge replaced my `⚠️ 200k+`** — Intentional on 1M-context models (Fable 5, Opus 5/4.x, Sonnet 5/4.6): crossing 200k is normal there, so it's informational (cyan), not a warning (red). 200k models like Haiku 4.5 still show the red warning.
+**Where did the gray `STD` badge go?** — Removed in 0.4.0. Fast mode now comes from the native `fast_mode` stdin field, and `⚡FAST` is shown only when it's on; "not fast" carried no information, and most models (Fable, Mythos, Sonnet, Haiku) have no fast mode at all.
+
+**The `🧠` effort badge is missing** — Claude Code only sends `effort.level` for models that support the effort parameter. If it's missing on a current model, check that your Claude Code is recent enough (`DEBUG=1 claude` and look for `"effort"` in the JSON).
+
+**The `📚 long-ctx` badge replaced my `⚠️ 200k+`** — Intentional on 1M-context models (Fable 5.1/5, Opus 5/4.x, Sonnet 5/4.6): crossing 200k is normal there, so it's informational (cyan), not a warning (red). 200k models like Haiku 4.5 still show the red warning.
 
 **How do I hide a segment?** — Switch to a smaller profile (`STATUSLINE_PROFILE=minimal`/`standard`), or edit the output-assembly block in `statusline.sh`.
 
@@ -466,8 +507,9 @@ Keep changes POSIX-friendly where possible, run `bash -n statusline.sh` before c
 - Ensure `git` is installed and in PATH
 
 ### Fast mode not detected
-- Toggle `/fast` and send at least one message
-- The speed field appears in the transcript after the first API response in that mode
+- `/fast` only exists on Opus 5 and Opus 4.8 — on Fable, Mythos, Sonnet and Haiku the badge never appears, by design
+- The badge reads the `fast_mode` stdin field; on an old Claude Code without it, run `DEBUG=1 claude` and check `~/.claude/debug_status.json`
+- The bar re-renders on the next refresh tick (`refreshInterval`), so allow a couple of seconds after toggling
 
 ### Permission mode doesn't refresh after Shift+Tab
 - Claude Code re-runs the statusline only after each assistant message, permission-mode change, or vim-mode toggle
@@ -497,14 +539,14 @@ Testreszabhato, informativ status bar a [Claude Code](https://docs.anthropic.com
 **Egysoros** (alapertelmezett):
 
 ```
-🤖 Opus 5 ⚡FAST 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ +12/-3 │ 🌿 main │ 📁 my-project
+🤖 Fable 5.1 🧠 xhigh 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ 💾 91% │ +12/-3 │ 🌿 main 🔀 #42 │ 📁 my-project
 ```
 
 **Ketsoros** (`STATUSLINE_LAYOUT=2`) — identitas felul, metrikak alul:
 
 ```
-🤖 Opus 5 ⚡FAST 📋 PLAN │ 🌿 main │ 📁 my-project
-$0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ +12/-3
+🤖 Fable 5.1 🧠 xhigh 📋 PLAN │ 🌿 main 🔀 #42 │ 📁 my-project
+$0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ 💾 91% │ +12/-3
 ```
 
 ## Tartalom
@@ -532,21 +574,24 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (24
 
 | Jelzo | Leiras |
 |-------|--------|
-| 🤖 Model | Aktualis modell, tier szerint szinezve — Fable/Mythos arany, Opus magenta, Sonnet kek, Haiku zold (Fable 5, Opus 5, Sonnet 5, stb.) |
-| ⚡FAST / STD | Fast mode jelzo |
+| 🤖 Model | Aktualis modell, tier szerint szinezve — Fable/Mythos arany, Opus magenta, Sonnet kek, Haiku zold (Fable 5.1, Opus 5, Sonnet 5, stb.) |
+| ⚡FAST | Fast mode aktiv — csak akkor latszik, ha a `/fast` be van kapcsolva (Opus 5 / Opus 4.8) |
+| 🧠 xhigh | Reasoning effort szint (`low` … `max`, koveti az `/effort`-ot) — `max` piros, `xhigh` magenta, `low`/`medium` halvany |
 | 📋 PLAN / 🚀 AUTO / ✅ EDIT / ⚠️ YOLO | Permission mode (transcriptbol olvasva — `default` nem latszik) |
 | 🎨 style | Output style (ha nem default) |
 | 🤝 agent | Aktiv subagent neve |
 | 📛 name | Egyedi session nev (`--name` / `/rename`) |
-| ⚠️ 200k+ / 📚 long-ctx | 200k token atlepve: piros `⚠️ 200k+` 200k modellnel mint a Haiku 4.5 (plafon), cyan `📚 long-ctx` 1M-context modellnel — Fable 5, Opus 5/4.x, Sonnet 5/4.6 (informativ) |
+| ⚠️ 200k+ / 📚 long-ctx | 200k token atlepve: piros `⚠️ 200k+` 200k modellnel mint a Haiku 4.5 (plafon), cyan `📚 long-ctx` 1M-context modellnel — Fable 5.1/5, Opus 5/4.x, Sonnet 5/4.6 (informativ) |
 | $X.XX | Session koltseg (API: tenyleges koltseg, Pro/Max: $0.00) |
 | [████░░] X% | Context ablak hasznalat szin-kodolt progress barral |
 | (Xk/200k) | Token hasznalat (felhasznalt/osszes) |
 | ⏱ Xm | Session idotartam |
 | 📡 N | API hivasok szama a sessionben |
+| 💾 X% | Prompt-cache talalati arany — zold ≥80%, sarga ≥50%, piros alatta; halvany `💾 cold`, ha a cache lejart |
 | 📊 5h:X% 7d:Y% | Claude.ai Pro/Max rate limit hasznalat — sarga ≥60%, piros ≥80% |
 | +X/-Y | Hozzaadott/torolt sorok |
 | 🌿 branch | Aktualis git branch (* = nem commitolt valtozasok) |
+| 🔀 #123 | Nyitott pull request a branchen (`!123` GitLab MR-nel) — zold approved, piros changes requested, halvany draft |
 | 📁 folder | Aktualis projekt mappa |
 | 🌳 worktree | Aktiv git worktree neve |
 | ⌨ NORMAL | Vim mode, ha aktiv |
@@ -566,12 +611,23 @@ A progress bar szine a hasznalattal valtozik:
 
 A 🤖 modellnev tier szerint szinezve, hogy egy pillantasra lasd, melyik modellen (es araron) vagy:
 
-- 🟡 Arany (felkover): **Fable / Mythos** — frontier tier (pl. Fable 5)
+- 🟡 Arany (felkover): **Fable / Mythos** — frontier tier (pl. Fable 5.1, Mythos 5.1, Fable 5)
 - 🟣 Magenta (felkover): **Opus** — premium tier (pl. Opus 5, Opus 4.8)
 - 🔵 Kek: **Sonnet**
 - 🟢 Zold: **Haiku**
 
-A talalat kis/nagybetu-fuggetlenul a `model.display_name` tier-szavara megy, fallbackkent a `model.id`-re (pl. `claude-fable-5`) — igy az uj verziok es atnevezett display name-ek is kodmodositas nelkul szinezodnek.
+A talalat kis/nagybetu-fuggetlenul a `model.display_name` tier-szavara megy, fallbackkent a `model.id`-re (pl. `claude-fable-5-1`) — igy az uj verziok es atnevezett display name-ek is kodmodositas nelkul szinezodnek.
+
+### Effort szint szinek
+
+A 🧠 effort jelzo (az `effort.level` mezobol) aszerint szinezett, mennyit fog a modell gondolkodasra kolteni:
+
+- 🔴 Piros (felkover): **max**
+- 🟣 Magenta (felkover): **xhigh** — a Claude Code alapertelmezettje kodolashoz / agentic munkahoz
+- ⚪ Sima: **high**
+- ⚫ Halvany: **medium** / **low**
+
+Fable-en es Mythoson a thinking mindig be van kapcsolva, igy az effort az egyetlen hangolo kar — ez a jelzo mutatja, hogy egy `/effort` valtas ervenybe lepett. Olyan modellen, ami nem tamogatja az effort parametert, a jelzo nem jelenik meg.
 
 ## Profilok
 
@@ -579,9 +635,9 @@ A `STATUSLINE_PROFILE` kornyezeti valtozo szabalyozza, mennyi latszik. Alapertel
 
 | Profil | Tartalmaz |
 |--------|-----------|
-| `minimal` | Alap mezok + permission mode (mindig egy soros) |
-| `standard` | + sebesseg, output style, agent, session nev, API szam, sorok |
-| `full` (default) | + rate limits, worktree, vim mode, 200k+ / long-ctx |
+| `minimal` | Alap mezok + effort + permission mode (mindig egy soros) |
+| `standard` | + fast mode, output style, agent, session nev, API szam, sorok |
+| `full` (default) | + rate limits, prompt cache, PR jelzo, worktree, vim mode, 200k+ / long-ctx |
 
 Allitsd be a `~/.claude/settings.json`-ban:
 
@@ -594,7 +650,7 @@ Allitsd be a `~/.claude/settings.json`-ban:
 A `STATUSLINE_LAYOUT` kornyezeti valtozo a sorok szamat szabalyozza:
 
 - `1` (alapertelmezett) — egy sor
-- `2` — ket sor. **1. sor** (identitas): modell, sebesseg, permission mode, output style, agent, session nev, git branch, projekt mappa, worktree, vim. **2. sor** (metrikak): koltseg, context bar + tokenek, duration, API szam, rate limits, 200k+ / long-ctx, sorok valtozasa.
+- `2` — ket sor. **1. sor** (identitas): modell, fast mode, effort, permission mode, output style, agent, session nev, git branch + PR, projekt mappa, worktree, vim. **2. sor** (metrikak): koltseg, context bar + tokenek, duration, API szam, prompt cache, rate limits, 200k+ / long-ctx, sorok valtozasa.
 
 Ajanlott a `full` profillal, hogy ne csusszon le a bar keskeny terminalon. A `minimal` profil figyelmen kivul hagyja ezt a beallitast (mindig egy soros marad).
 
@@ -615,7 +671,8 @@ Melyik szegmens melyik profilban jelenik meg. A szegmensek akkor is elrejtoznek,
 | Szegmens | `minimal` | `standard` | `full` |
 |----------|:---------:|:----------:|:------:|
 | 🤖 modell (tier-szin) | ✅ | ✅ | ✅ |
-| ⚡FAST / STD sebesseg | ➖ | ✅ | ✅ |
+| ⚡FAST fast mode | ➖ | ✅ | ✅ |
+| 🧠 effort szint | ✅ | ✅ | ✅ |
 | 📋/🚀/✅/⚠️ permission mode | ✅ | ✅ | ✅ |
 | 🎨 output style | ➖ | ✅ | ✅ |
 | 🤝 agent | ➖ | ✅ | ✅ |
@@ -629,9 +686,12 @@ Melyik szegmens melyik profilban jelenik meg. A szegmensek akkor is elrejtoznek,
 | 🌿 git branch | ✅ | ✅ | ✅ |
 | 📁 mappa | ✅ | ✅ | ✅ |
 | 📊 rate limits | ➖ | ➖ | ✅ |
+| 💾 prompt cache | ➖ | ➖ | ✅ |
+| 🔀 PR jelzo | ➖ | ➖ | ✅ |
 | 🌳 worktree | ➖ | ➖ | ✅ |
 | ⌨ vim mode | ➖ | ➖ | ✅ |
 | ⚠️ 200k+ / 📚 long-ctx | ➖ | ➖ | ✅ |
+| ⚙ Claude Code verzio | ➖ | ➖ | ✅ |
 
 ✅ = megjelenik, ha van adat · ➖ = ebben a profilban nem latszik
 
@@ -742,11 +802,23 @@ Ez minden frissiteskor elmenti a nyers JSON bemenetet a `~/.claude/debug_status.
 
 ### Fast mode jelzo
 
-A `/fast` valtaskor a statusline `⚡FAST`-ot mutat sargaban a modellnev mellett. A transcriptbol olvassa az utolso `Fast mode ON/OFF` esemenyt, fallback a `"speed"` mezo. A `/fast` elerheto Opus 5-on es Opus 4.8-on (az Opus 4.7-rol eltavolitottak).
+A `/fast` valtaskor a statusline `⚡FAST`-ot mutat sargaban a modellnev mellett, a nativ `fast_mode` stdin mezobol. Kikapcsolt fast mode eseten semmi nem latszik (a regi szurke `STD` jelzo megszunt — nem hordozott informaciot). A `/fast` csak Opus 5-on es Opus 4.8-on elerheto; Fable, Mythos, Sonnet es Haiku modellen nincs fast mode, ott a jelzo soha nem jelenik meg.
+
+### Effort szint
+
+A `🧠 xhigh` az elo reasoning-effort szintet mutatja az `effort.level` stdin mezobol — koveti a session kozbeni `/effort` valtasokat, es koltseg szerint szinezett: `max` felkover piros, `xhigh` felkover magenta, `high` sima, `medium`/`low` halvany. Minden profilban latszik, mert a modell tulajdonsaga, mint a permission mode. Fable 5.1 / Mythos 5.1 modellen a thinking mindig be van kapcsolva, es az effort az egyetlen kar, ami befolyasolja, mennyit dolgozik a modell — ott ezt a jelzot erdemes figyelni. Olyan modellen, ami nem tamogatja az effort parametert, nem jelenik meg (a Claude Code elhagyja a mezot).
+
+### Prompt cache
+
+A `💾 91%` a fo beszelgetes prompt-cache talalati aranyat mutatja a `prompt_cache` stdin mezobol: zold ≥80%, sarga ≥50%, piros alatta. Ha a cache kihult (lejart az 1 oras TTL — a kovetkezo keres ujrairja a teljes prefixet), halvany `💾 cold` latszik helyette. Csak a `full` profilban, es csak miutan legalabb egy keres tortent.
+
+### PR jelzo
+
+A `🔀 #1234` a git branch mellett jelenik meg, amig nyitott pull request tartozik hozza (`pr.number`), a `pr.review_state` szerint szinezve: zold `approved`, piros `changes_requested`, halvany `draft`, sima `pending`. GitLab merge requestnel `!` prefix (`🔀 !1234`). Csak a `full` profilban; eltunik, amint a PR merge-elodik vagy lezarul.
 
 ### Permission mode jelzo
 
-A Claude Code stdin JSON **nem** tartalmazza a permission modot — csak a `vim.mode`, `output_style.name` es `agent.name` van benne. A statusline a transcript JSONL utolso `{"type":"permission-mode","permissionMode":"..."}` bejegyzesebol olvassa ki:
+A Claude Code stdin JSON **nem** tartalmazza a permission modot. A statusline a transcript JSONL utolso `{"type":"permission-mode","permissionMode":"..."}` bejegyzesebol olvassa ki:
 
 - 📋 **PLAN** (sarga) — read-only tervezesi mod (Shift+Tab)
 - 🚀 **AUTO** (kek) — autonom vegrehajtas
@@ -762,7 +834,7 @@ A bar frissul minden asszisztens uzenet utan, permission-mode valtaskor, es a be
 
 ### 1M-context tudatossag (Claude 5 csalad)
 
-Minden aktualis modell — Fable 5, Opus 5/4.8/4.7/4.6, Sonnet 5, Sonnet 4.6 — 1M tokenes context ablakkal fut, ahol a 200k atlepese rutinszeru, nem figyelmeztetes — ezert informativ cyan `📚 long-ctx` jelet mutat. A 200k-s modelleknel (Haiku 4.5) a 200k a valodi plafon, ott marad a piros `⚠️ 200k+`. A megkulonboztetes adat-vezerelt (`context_window_size > 200000`), igy a jovobeli modellekkel is automatikusan mukodik.
+Minden aktualis modell — Fable 5.1/5, Mythos 5.1, Opus 5/4.8/4.7/4.6, Sonnet 5, Sonnet 4.6 — 1M tokenes context ablakkal fut, ahol a 200k atlepese rutinszeru, nem figyelmeztetes — ezert informativ cyan `📚 long-ctx` jelet mutat. A 200k-s modelleknel (Haiku 4.5) a 200k a valodi plafon, ott marad a piros `⚠️ 200k+`. A megkulonboztetes adat-vezerelt (`context_window_size > 200000`), igy a jovobeli modellekkel is automatikusan mukodik.
 
 ### Git integracio
 
@@ -793,7 +865,7 @@ Claude Code  ── JSON a stdin-en ──▶  statusline.sh
                                           │
    1. data=$(cat)              teljes stdin a $data-ba
    2. egy jq hivas             modell, koltseg, ctx %, meretek, mappak, flagek …
-   3. transcript JSONL         permission mode, fast mode, API hivasszam
+   3. transcript JSONL         permission mode, API hivasszam
    4. helyi szamitas           git branch + dirty, idotartam, szinek, bar
    5. profil/layout szerint    az ANSI sztring(ek) osszeallitasa
                                           │
@@ -803,11 +875,12 @@ Claude Code  ── JSON a stdin-en ──▶  statusline.sh
 
 **Egy `jq` hivas.** Minden stdin mezo egyetlen `jq -r` hivasban jon ki `@sh` idezessel, majd `eval`-lal valtozokba. Az `@sh` minden erteket shell-idez, igy a megbizhatatlan stdin ellenere az `eval` injekcio-biztos.
 
-**Miert olvassa a transcriptet.** A stdin JSON nem teszi kozze a **permission modot**, a **fast mode** allapotot, sem az **API hivasszamot**. A script a transcript JSONL-t (`transcript_path`) olvassa:
+**Miert olvassa a transcriptet.** A stdin JSON nem teszi kozze a **permission modot**, sem az **API hivasszamot**. A script a transcript JSONL-t (`transcript_path`) olvassa:
 
 - utolso `{"type":"permission-mode","permissionMode":"..."}` → permission mode
-- utolso `Fast mode ON/OFF` (fallback `"speed":"fast"`) → fast mode
 - `"type":"assistant"` bejegyzesek szama → API hivasszam
+
+A fast mode, az effort szint, a prompt-cache statisztika es a nyitott PR kozvetlenul a stdin-rol jon (`fast_mode`, `effort.level`, `prompt_cache`, `pr`) — ezekhez nem kell transcript-olvasas.
 
 **Frissitesi triggerek.** A bar ujrarenderel minden asszisztens uzenet utan, permission-mode vagy vim-mode valtaskor, es `refreshInterval` masodpercenkent. Minden futas par `tac | grep` olvasas a transcripten plusz `git` hivasok — olcso, de fut a timeren is, igy tartsd a `refreshInterval`-t 2 mp-en vagy folotte.
 
@@ -816,8 +889,8 @@ Claude Code  ── JSON a stdin-en ──▶  statusline.sh
 | Ikon | Jelentes | Forras / Logika |
 |------|----------|-----------------|
 | 🤖 | Modell neve | `model.display_name` a Claude Code JSON bemenetbol — tier szerint szinezve: Fable/Mythos = arany (frontier), Opus = magenta (premium), Sonnet = kek, Haiku = zold |
-| ⚡FAST | Fast mod aktiv (sarga) | Transcript JSONL-bol: eloszor `Fast mode ON/OFF` toggle-t keres, fallback: `"speed":"fast"` |
-| STD | Standard sebesseg (szurke) | Ugyanaz, mint fent — ha nincs fast mod |
+| ⚡FAST | Fast mod aktiv (sarga) | `fast_mode` stdin mezo — csak `true` eseten latszik (Opus 5 / Opus 4.8) |
+| 🧠 szint | Reasoning effort | `effort.level` — `max` felkover piros, `xhigh` felkover magenta, `high` sima, `medium`/`low` halvany; nincs, ha a modellnek nincs effort parametere |
 | 📋 PLAN / 🚀 AUTO / ✅ EDIT / ⚠️ YOLO | Permission mode | Transcript JSONL utolso `{"type":"permission-mode","permissionMode":"..."}` bejegyzese; `default` eseten nincs kijelzes |
 | 🎨 style | Output style | `output_style.name` — csak ha ≠ `default` (standard/full profil) |
 | 🤝 agent | Aktiv subagent | `agent.name` — csak `--agent` sessionben (standard/full profil) |
@@ -828,9 +901,11 @@ Claude Code  ── JSON a stdin-en ──▶  statusline.sh
 | (Xk/Xk) | Tokenek (hasznalt/osszes) | `used_percentage * context_window_size` / `context_window_size` |
 | ⏱ | Session idotartam | `cost.total_duration_ms` — formatum: Xs, XmXs, vagy XhXm |
 | 📡 N | API hivasok szama | `"type":"assistant"` bejegyzesek szama a transcript JSONL-ben |
+| 💾 X% / cold | Prompt cache | `prompt_cache.hit_ratio` × 100 — 🟢 ≥80%, 🟡 ≥50%, 🔴 alatta; halvany `cold`, ha a `prompt_cache.warm` false (full profil) |
 | 📊 5h:X% 7d:Y% | Rate limits | `rate_limits.five_hour` / `rate_limits.seven_day` — csak Pro/Max, ertekenkent szinezve: 🟡 ≥60%, 🔴 ≥80% (full profil) |
 | +X/-Y | Sorok valtozasa | `cost.total_lines_added` / `cost.total_lines_removed` — zold/piros |
 | 🌿 | Git branch | `git branch --show-current`, `*` = nem commitolt valtozasok |
+| 🔀 #N / !N | Nyitott PR / MR | `pr.number` (+ `pr.kind` = `mr` → `!`), a `pr.review_state` szerint szinezve: 🟢 approved, 🔴 changes_requested, halvany draft (full profil) |
 | 📁 | Projekt mappa | `basename` a `workspace.current_dir`-bol |
 | 🌳 | Git worktree | `worktree.name` vagy `workspace.git_worktree` (full profil) |
 | ⌨ | Vim mode | `vim.mode` — `NORMAL` / `INSERT` (full profil) |
@@ -857,7 +932,7 @@ A script hordozza a sajat verziojat, es stdin nelkul is valaszol — hasznos, ha
 
 ```bash
 ~/.claude/statusline.sh --version
-# claude-code-statusline v0.3.0
+# claude-code-statusline v0.4.0
 ```
 
 Vesd ossze a repo `statusline.sh`-javal (vagy a Changeloggal), hogy lasd, elavult-e egy kitelepitett peldany.
@@ -867,11 +942,11 @@ Vesd ossze a repo `statusline.sh`-javal (vagy a Changeloggal), hogy lasd, elavul
 A script egyetlen JSON objektumot olvas stdin-en, igy kozvetlenul etethetsz minta-bemenetet:
 
 ```bash
-echo '{"model":{"display_name":"Fable 5"},"context_window":{"used_percentage":25,"context_window_size":1000000},"exceeds_200k_tokens":true,"cost":{"total_cost_usd":1.2},"workspace":{"current_dir":"'"$PWD"'"}}' \
+echo '{"model":{"display_name":"Fable 5.1","id":"claude-fable-5-1"},"effort":{"level":"xhigh"},"fast_mode":false,"prompt_cache":{"warm":true,"hit_ratio":0.91,"requests":14},"pr":{"number":42,"review_state":"approved"},"context_window":{"used_percentage":25,"context_window_size":1000000},"exceeds_200k_tokens":true,"cost":{"total_cost_usd":1.2},"workspace":{"current_dir":"'"$PWD"'"}}' \
   | STATUSLINE_LAYOUT=2 STATUSLINE_PROFILE=full ./statusline.sh
 ```
 
-Csereld a `display_name`-t `Opus 5` / `Sonnet 5` / `Haiku 4.5`-re a tier szinekhez, vagy allitsd a `context_window_size`-t `200000`-re a piros `⚠️ 200k+`-hoz a `📚 long-ctx` helyett.
+Csereld a `display_name`-t `Opus 5` / `Sonnet 5` / `Haiku 4.5`-re a tier szinekhez, allitsd `"fast_mode":true`-ra az `⚡FAST`-hoz, valtsd az `effort.level`-t `max` / `low`-ra, allitsd `"warm":false`-ra a `💾 cold`-hoz, vagy a `context_window_size`-t `200000`-re a piros `⚠️ 200k+`-hoz a `📚 long-ctx` helyett.
 
 ### Valos bemenet rogzitese
 
@@ -904,7 +979,11 @@ Tartsd a valtoztatasokat lehetoleg POSIX-baratnak, futtasd a `bash -n statusline
 
 **A koltseg `$0.00`** — Ez varhato Claude.ai Pro/Max felhasznaloknak — nincs per-keres szamlazas. API-kulcsos felhasznalok latjak a valos koltseget. Pro/Max felhasznalok a `📊` rate-limit szegmenst kapjak helyette.
 
-**A `📚 long-ctx` lecserelte a `⚠️ 200k+`-t** — Szandekos az 1M-context modelleknel (Fable 5, Opus 5/4.x, Sonnet 5/4.6): ott a 200k atlepese normalis, ezert informativ (cyan), nem figyelmeztetes (piros). A 200k-s modellek mint a Haiku 4.5 tovabbra is a piros figyelmeztetest mutatjak.
+**Hova tunt a szurke `STD` jelzo?** — A 0.4.0-ban kikerult. A fast mode mostantol a nativ `fast_mode` stdin mezobol jon, es az `⚡FAST` csak bekapcsolt allapotban latszik; a "nem fast" nem hordozott informaciot, es a legtobb modellen (Fable, Mythos, Sonnet, Haiku) nincs is fast mode.
+
+**Hianyzik a `🧠` effort jelzo** — A Claude Code csak olyan modellnel kuldi az `effort.level`-t, ami tamogatja az effort parametert. Ha aktualis modellen hianyzik, ellenorizd, hogy eleg friss-e a Claude Code (`DEBUG=1 claude`, es keresd az `"effort"` kulcsot a JSON-ban).
+
+**A `📚 long-ctx` lecserelte a `⚠️ 200k+`-t** — Szandekos az 1M-context modelleknel (Fable 5.1/5, Opus 5/4.x, Sonnet 5/4.6): ott a 200k atlepese normalis, ezert informativ (cyan), nem figyelmeztetes (piros). A 200k-s modellek mint a Haiku 4.5 tovabbra is a piros figyelmeztetest mutatjak.
 
 **Hogyan rejtsek el egy szegmenst?** — Valts kisebb profilra (`minimal`/`standard`), vagy szerkeszd az output-osszeallito blokkot a `statusline.sh`-ban.
 
@@ -932,8 +1011,9 @@ Tartsd a valtoztatasokat lehetoleg POSIX-baratnak, futtasd a `bash -n statusline
 - A `git` legyen telepitve es a PATH-ban
 
 ### A fast mode nem detektalodik
-- Valts `/fast`-ot es kuldj legalabb egy uzenetet
-- A speed mezo az elso API valasz utan jelenik meg a transcriptben
+- A `/fast` csak Opus 5-on es Opus 4.8-on letezik — Fable, Mythos, Sonnet es Haiku modellen a jelzo szandekosan soha nem jelenik meg
+- A jelzo a `fast_mode` stdin mezot olvassa; regi Claude Code-on, ahol ez nincs, futtass `DEBUG=1 claude`-ot es nezd meg a `~/.claude/debug_status.json`-t
+- A bar a kovetkezo frissitesi tickre (`refreshInterval`) renderel ujra, valtas utan varj par masodpercet
 
 ### A permission mode nem frissul Shift+Tab utan
 - A Claude Code csak uj asszisztens uzenet, permission-mode valtozas, vagy vim-mode valtas utan futtatja a statusline-t

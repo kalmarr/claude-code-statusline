@@ -3,6 +3,42 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0]
+
+Adapts the statusline to the Claude Code stdin fields that arrived with the
+Claude 5 family — the Fable 5.1 / Mythos 5.1 tier colors already worked
+(version-independent glob), this release surfaces what those models actually
+expose.
+
+### Added
+- **`🧠 effort` segment** — live reasoning-effort level from the `effort.level`
+  stdin field (`low` / `medium` / `high` / `xhigh` / `max`), colored by cost:
+  `max` bold red, `xhigh` bold magenta, `high` plain, `medium`/`low` dim.
+  Follows `/effort` changes mid-session. Shown in every profile, because on
+  Fable 5.1 / Mythos 5.1 (thinking always on) effort is the only tuning knob.
+  Hidden when the model doesn't support the effort parameter.
+- **`💾 cache` segment** (full profile) — prompt-cache hit ratio from the
+  `prompt_cache` stdin field: green ≥80%, yellow ≥50%, red below; dim
+  `💾 cold` once the 1-hour cache TTL has expired.
+- **`🔀 PR` badge** (full profile) — open pull request on the current branch
+  from the `pr` stdin field, colored by review state (green approved, red
+  changes requested, dim draft). GitLab merge requests show as `!N`.
+- Docs refreshed for Fable 5.1 / Mythos 5.1 (`claude-fable-5-1`); test snippets
+  now include the new fields.
+
+### Changed
+- **Fast mode** now reads the native `fast_mode` stdin field instead of
+  grepping the transcript for `Fast mode ON/OFF` / `"speed"` events.
+- The transcript is now read only for the API call count and the permission
+  mode (still absent from stdin).
+
+### Removed
+- The gray **`STD`** badge. `⚡FAST` is shown only when fast mode is on; "not
+  fast" carried no information, and most models (Fable, Mythos, Sonnet, Haiku)
+  have no fast mode at all.
+- Transcript-based fast-mode detection (`tac | grep` on `Fast mode ON/OFF`
+  and `"speed":"fast"`).
+
 ## [0.3.0]
 
 ### Added
