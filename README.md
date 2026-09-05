@@ -8,6 +8,8 @@ A customizable, informative status bar for the [Claude Code](https://docs.anthro
 
 *Magyar verzio lentebb / [Hungarian version below](#claude-code-statusline-magyar)*
 
+![Claude Code statusline, full profile](screenshots/statusline-full.png)
+
 **Single line** (default):
 
 ```
@@ -23,6 +25,7 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (24
 
 ## Table of contents
 
+- [Screenshots](#screenshots)
 - [What it shows](#what-it-shows)
 - [Colors](#colors)
 - [Profiles](#profiles)
@@ -41,6 +44,31 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (24
 - [Uninstall](#uninstall)
 - [Changelog](#changelog)
 - [License](#license)
+
+## Screenshots
+
+All shots below are the real script output, rendered from the same sample
+stdin JSON — nothing is mocked up by hand.
+
+**Feature profiles** — the same session in `minimal`, `standard` and `full`
+(default). Each step up adds segments: token detail and API count, then the
+prompt cache, rate limits, PR badge and Claude Code version.
+
+![Profiles: minimal, standard, full](screenshots/profiles.png)
+
+**Two-line layout** (`STATUSLINE_LAYOUT=2`) — identity (model, effort,
+permission mode, branch, PR, folder) on the first row, metrics (cost, context,
+duration, API calls, cache, rate limits) on the second.
+
+![Two-line layout](screenshots/statusline-two-line.png)
+
+**Model tiers, modes and warnings** — from top to bottom: Fable 5.1 in gold
+with `🧠 max` effort and plan mode; Opus 5 with `⚡FAST`, accept-edits and a
+cold prompt cache; Sonnet 5 past 200k on a 1M window (cyan `📚 long-ctx`) with
+an 83% five-hour rate limit in red; Haiku 4.5 at the real 200k ceiling (red
+`⚠️ 200k+`) in bypass-permissions mode inside a worktree.
+
+![Model tiers, permission modes and warning badges](screenshots/states.png)
 
 ## What it shows
 
@@ -536,6 +564,8 @@ MIT — see [LICENSE](LICENSE)
 
 Testreszabhato, informativ status bar a [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI-hez. Tiszta Bash + `jq` — nincs daemon, nincs kulon fuggoseg.
 
+![Claude Code statusline, full profil](screenshots/statusline-full.png)
+
 **Egysoros** (alapertelmezett):
 
 ```
@@ -551,6 +581,7 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (24
 
 ## Tartalom
 
+- [Kepernyokepek](#kepernyokepek)
 - [Mit mutat](#mit-mutat)
 - [Szinek](#szinek)
 - [Profilok](#profilok)
@@ -569,6 +600,32 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (24
 - [Eltavolitas](#eltavolitas)
 - [Valtozasok](#valtozasok)
 - [Licenc](#licenc)
+
+## Kepernyokepek
+
+Minden kep a script valodi kimenete, ugyanabbol a minta stdin JSON-bol
+rendelve — semmi nincs kezzel osszerakva.
+
+**Profilok** — ugyanaz a session `minimal`, `standard` es `full`
+(alapertelmezett) profilban. Minden szint ujabb szegmenseket hoz: token-reszlet
+es API-szamlalo, majd prompt cache, rate limitek, PR badge es Claude Code
+verzio.
+
+![Profilok: minimal, standard, full](screenshots/profiles.png)
+
+**Ketsoros elrendezes** (`STATUSLINE_LAYOUT=2`) — az elso sorban az identitas
+(modell, effort, jogosultsagi mod, branch, PR, mappa), a masodikban a metrikak
+(koltseg, kontextus, ido, API-hivasok, cache, rate limitek).
+
+![Ketsoros elrendezes](screenshots/statusline-two-line.png)
+
+**Modell-szintek, modok es figyelmeztetesek** — fentrol lefele: Fable 5.1
+aranyszinnel, `🧠 max` efforttal es plan modban; Opus 5 `⚡FAST` jelzessel,
+accept-edits modban, hideg prompt cache-sel; Sonnet 5 200k folott 1M-es
+ablakon (cian `📚 long-ctx`), 83%-os oteorass rate limittel pirosan; Haiku 4.5
+a valodi 200k plafonon (piros `⚠️ 200k+`), bypass-permissions modban, worktree-ben.
+
+![Modell-szintek, jogosultsagi modok es figyelmezteto badge-ek](screenshots/states.png)
 
 ## Mit mutat
 

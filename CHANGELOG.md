@@ -39,6 +39,12 @@ expose.
 - Transcript-based fast-mode detection (`tac | grep` on `Fast mode ON/OFF`
   and `"speed":"fast"`).
 
+### Docs
+- **Screenshots** — the README now opens with a rendered shot of the full
+  profile, plus a `Screenshots` section comparing the three profiles, the
+  two-line layout, and the model-tier / permission-mode / warning states.
+  Every image is the real script output rendered from sample stdin JSON.
+
 ## [0.3.0]
 
 ### Added
