@@ -13,14 +13,14 @@ A customizable, informative status bar for the [Claude Code](https://docs.anthro
 **Single line** (default):
 
 ```
-🤖 Fable 5.1 🧠 xhigh 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ 💾 91% │ +12/-3 │ 🌿 main 🔀 #42 │ 📁 my-project
+🤖 Fable 5.1 🧠 xhigh 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ 💾 91% ↻47m │ 📊 5h:13% ↻28m 7d:25% ↻2d23h │ +12/-3 │ 🌿 main 🔀 #42 │ 📁 my-project
 ```
 
 **Two lines** (`STATUSLINE_LAYOUT=2`) — identity on top, metrics below:
 
 ```
 🤖 Fable 5.1 🧠 xhigh 📋 PLAN │ 🌿 main 🔀 #42 │ 📁 my-project
-$0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ 💾 91% │ +12/-3
+$0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ 💾 91% ↻47m │ 📊 5h:13% ↻28m │ +12/-3
 ```
 
 ## Table of contents
@@ -49,6 +49,12 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (24
 
 All shots below are the real script output, rendered from the same sample
 stdin JSON — nothing is mocked up by hand.
+
+**Quota** — the `📊` percentages are the share **used**, and the dim `↻` says
+when each window rolls over. Below 5% left (95%+ used) the value turns blinking
+bold red, which a still image can only hint at with a glow.
+
+![Rate limit usage with reset countdown](screenshots/quota.png)
 
 **Feature profiles** — the same session in `minimal`, `standard` and `full`
 (default). Each step up adds segments: token detail and API count, then the
@@ -87,8 +93,8 @@ an 83% five-hour rate limit in red; Haiku 4.5 at the real 200k ceiling (red
 | (Xk/200k) | Token usage (used/total) |
 | ⏱ Xm | Session duration |
 | 📡 N | Number of API calls in this session |
-| 💾 X% | Prompt-cache hit ratio — green ≥80%, yellow ≥50%, red below; dim `💾 cold` when the cache has expired |
-| 📊 5h:X% 7d:Y% | Claude.ai Pro/Max rate limit usage — yellow at ≥60%, red at ≥80% |
+| 💾 X% ↻47m | Prompt-cache hit ratio — green ≥80%, yellow ≥50%, red below, with a dim countdown to the TTL expiry; dim `💾 cold` when the cache has expired |
+| 📊 5h:X% ↻28m 7d:Y% | Claude.ai Pro/Max rate limit **used** share — yellow at ≥60%, red at ≥80%, **blinking red at ≥95%** (under 5% of the quota left) — with a dim `↻` countdown to the window reset |
 | +X/-Y | Lines added/removed |
 | 🌿 branch | Current git branch (* = uncommitted changes) |
 | 🔀 #123 | Open pull request on the branch (`!123` for GitLab MRs) — green approved, red changes requested, dim draft |
@@ -310,7 +316,7 @@ When you toggle `/fast` in Claude Code, the statusline shows `⚡FAST` in yellow
 
 ### Prompt cache
 
-`💾 91%` shows the prompt-cache hit ratio of the main conversation from the `prompt_cache` stdin field: green ≥80%, yellow ≥50%, red below. When the cache has gone cold (the 1-hour TTL expired — the next request re-writes the whole prefix) it shows a dim `💾 cold` instead. Only in the `full` profile, and only once at least one request has been made.
+`💾 91%` shows the prompt-cache hit ratio of the main conversation from the `prompt_cache` stdin field: green ≥80%, yellow ≥50%, red below. A dim `↻47m` after the ratio counts down the TTL from `prompt_cache.expires_at` — that is how long you have before the next request re-writes the whole prefix. When the cache has gone cold it shows a dim `💾 cold` instead. Only in the `full` profile, and only once at least one request has been made.
 
 ### PR badge
 
@@ -346,7 +352,9 @@ Tracks total lines added and removed during the session. Shows `±0` when no cha
 
 ### Rate limits (Pro/Max only)
 
-Displays your Claude.ai 5-hour and 7-day rate limit consumption (`📊 5h:42% 7d:87%`) when the `rate_limits` field is present in the JSON input. Only shown in the `full` profile. Each percentage is color-coded: plain below 60%, yellow at 60–79%, red at 80%+ — so you notice you're approaching the limit before hitting it.
+Displays your Claude.ai 5-hour and 7-day rate limit consumption (`📊 5h:42% ↻28m 7d:87% ↻2d23h`) when the `rate_limits` field is present in the JSON input. Only shown in the `full` profile. Each percentage is color-coded: plain below 60%, yellow at 60–79%, red at 80–94%, and **blinking bold red from 95%** — that last one means under 5% of the window is left, the one state worth interrupting you for. Blink is `SGR 5`; terminals that ignore it (some minimal ones do) still show the bold red.
+
+The percentage is the share **already used**, not what is left: `5h:13%` means 13% consumed, 87% still available. The dim `↻` countdown after it is the time until that window rolls over and the used share drops back to zero, computed from `rate_limits.*.resets_at`. It is omitted when the field is absent (older Claude Code) or already in the past — a stale reset time would be worse than none. For exact figures and reset timestamps, use Claude Code's built-in `/usage`.
 
 ### Worktree & agent indicators
 
@@ -390,7 +398,7 @@ Fast mode, effort level, prompt-cache stats and the open PR all come straight fr
 - `model.id` — model ID (e.g. `claude-fable-5-1`) — fallback for tier detection
 - `fast_mode` — whether `/fast` is on (`⚡FAST`)
 - `effort.level` — live reasoning effort `low`/`medium`/`high`/`xhigh`/`max` (`🧠`); absent when unsupported
-- `prompt_cache.{warm,hit_ratio,requests}` — main-conversation cache stats (`💾`)
+- `prompt_cache.{warm,hit_ratio,requests,expires_at}` — main-conversation cache stats and TTL countdown (`💾`)
 - `pr.{number,review_state,kind}` — open PR / MR on the current branch (`🔀`)
 - `version` — Claude Code version (shown as `⚙ vX.Y.Z` in the full profile)
 - `cost.total_cost_usd` — session cost
@@ -399,7 +407,7 @@ Fast mode, effort level, prompt-cache stats and the open PR all come straight fr
 - `context_window.used_percentage` — context usage % (float — floored with `jq | floor`)
 - `context_window.context_window_size` — max context tokens (200k default, 1M for extended-context models)
 - `exceeds_200k_tokens` — whether the session crossed 200k tokens
-- `rate_limits.{five_hour,seven_day}.used_percentage` — Pro/Max rate-limit usage
+- `rate_limits.{five_hour,seven_day}.{used_percentage,resets_at}` — Pro/Max rate-limit usage and window reset (`📊`)
 - `output_style.name` — active output style
 - `agent.name` — active subagent (when running with `--agent`)
 - `session_name` — custom name set via `--name` / `/rename`
@@ -425,8 +433,8 @@ Fast mode, effort level, prompt-cache stats and the open PR all come straight fr
 | (Xk/Xk) | Tokens used/total | Derived from `used_percentage * context_window_size` / `context_window_size` |
 | ⏱ | Session duration | `cost.total_duration_ms` — auto-formats: Xs, XmXs, or XhXm |
 | 📡 N | API call count | Counts `"type":"assistant"` entries in transcript JSONL |
-| 💾 X% / cold | Prompt cache | `prompt_cache.hit_ratio` × 100 — 🟢 ≥80%, 🟡 ≥50%, 🔴 below; dim `cold` when `prompt_cache.warm` is false (full profile) |
-| 📊 5h:X% 7d:Y% | Rate limits | `rate_limits.five_hour` / `rate_limits.seven_day` — Pro/Max only, per-value coloring: 🟡 ≥60%, 🔴 ≥80% (full profile) |
+| 💾 X% ↻ / cold | Prompt cache | `prompt_cache.hit_ratio` × 100 — 🟢 ≥80%, 🟡 ≥50%, 🔴 below; dim `↻` = TTL left from `expires_at`; dim `cold` when `prompt_cache.warm` is false (full profile) |
+| 📊 5h:X% ↻ 7d:Y% ↻ | Rate limits | `rate_limits.five_hour` / `rate_limits.seven_day` — used share, Pro/Max only, per-value coloring: 🟡 ≥60%, 🔴 ≥80%, 🔴✨ blinking ≥95%; dim `↻` = time to `resets_at` (full profile) |
 | +X/-Y | Lines changed | `cost.total_lines_added` / `cost.total_lines_removed` — green/red colored |
 | 🌿 | Git branch | `git branch --show-current` in workspace dir, `*` suffix = uncommitted changes |
 | 🔀 #N / !N | Open PR / MR | `pr.number` (+ `pr.kind` = `mr` → `!`), colored by `pr.review_state`: 🟢 approved, 🔴 changes_requested, dim draft (full profile) |
@@ -569,14 +577,14 @@ Testreszabhato, informativ status bar a [Claude Code](https://docs.anthropic.com
 **Egysoros** (alapertelmezett):
 
 ```
-🤖 Fable 5.1 🧠 xhigh 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ 💾 91% │ +12/-3 │ 🌿 main 🔀 #42 │ 📁 my-project
+🤖 Fable 5.1 🧠 xhigh 📋 PLAN │ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ 💾 91% ↻47m │ 📊 5h:13% ↻28m 7d:25% ↻2d23h │ +12/-3 │ 🌿 main 🔀 #42 │ 📁 my-project
 ```
 
 **Ketsoros** (`STATUSLINE_LAYOUT=2`) — identitas felul, metrikak alul:
 
 ```
 🤖 Fable 5.1 🧠 xhigh 📋 PLAN │ 🌿 main 🔀 #42 │ 📁 my-project
-$0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ 💾 91% │ +12/-3
+$0.51 │ [████░░░░░░░░░░░░░░░░] 24% (240k/1000k) │ ⏱ 6m51s │ 📡 5 │ 💾 91% ↻47m │ 📊 5h:13% ↻28m │ +12/-3
 ```
 
 ## Tartalom
@@ -605,6 +613,13 @@ $0.51 │ [████░░░░░░░░░░░░░░░░] 24% (24
 
 Minden kep a script valodi kimenete, ugyanabbol a minta stdin JSON-bol
 rendelve — semmi nincs kezzel osszerakva.
+
+**Keret** — a `📊` szazalekok az **elhasznalt** reszt mutatjak, a halvany `↻`
+pedig azt, mikor fordul at az adott ablak. 5% alatti maradeknal (95%+ hasznalat)
+az ertek villogo felkover pirosra valt — ezt egy allokep csak derengessel tudja
+jelezni.
+
+![Rate limit hasznalat reset-visszaszamlalassal](screenshots/quota.png)
 
 **Profilok** — ugyanaz a session `minimal`, `standard` es `full`
 (alapertelmezett) profilban. Minden szint ujabb szegmenseket hoz: token-reszlet
@@ -644,8 +659,8 @@ a valodi 200k plafonon (piros `⚠️ 200k+`), bypass-permissions modban, worktr
 | (Xk/200k) | Token hasznalat (felhasznalt/osszes) |
 | ⏱ Xm | Session idotartam |
 | 📡 N | API hivasok szama a sessionben |
-| 💾 X% | Prompt-cache talalati arany — zold ≥80%, sarga ≥50%, piros alatta; halvany `💾 cold`, ha a cache lejart |
-| 📊 5h:X% 7d:Y% | Claude.ai Pro/Max rate limit hasznalat — sarga ≥60%, piros ≥80% |
+| 💾 X% ↻47m | Prompt-cache talalati arany — zold ≥80%, sarga ≥50%, piros alatta, halvany visszaszamlalassal a TTL lejartaig; halvany `💾 cold`, ha a cache lejart |
+| 📊 5h:X% ↻28m 7d:Y% | Claude.ai Pro/Max rate limit **elhasznalt** aranya — sarga ≥60%, piros ≥80%, **villogo piros ≥95%** (5% alatti maradek) — halvany `↻` visszaszamlalassal az ablak nullazodasaig |
 | +X/-Y | Hozzaadott/torolt sorok |
 | 🌿 branch | Aktualis git branch (* = nem commitolt valtozasok) |
 | 🔀 #123 | Nyitott pull request a branchen (`!123` GitLab MR-nel) — zold approved, piros changes requested, halvany draft |
@@ -867,7 +882,7 @@ A `🧠 xhigh` az elo reasoning-effort szintet mutatja az `effort.level` stdin m
 
 ### Prompt cache
 
-A `💾 91%` a fo beszelgetes prompt-cache talalati aranyat mutatja a `prompt_cache` stdin mezobol: zold ≥80%, sarga ≥50%, piros alatta. Ha a cache kihult (lejart az 1 oras TTL — a kovetkezo keres ujrairja a teljes prefixet), halvany `💾 cold` latszik helyette. Csak a `full` profilban, es csak miutan legalabb egy keres tortent.
+A `💾 91%` a fo beszelgetes prompt-cache talalati aranyat mutatja a `prompt_cache` stdin mezobol: zold ≥80%, sarga ≥50%, piros alatta. Az arany utani halvany `↻47m` a TTL-t szamolja vissza a `prompt_cache.expires_at` mezobol — ennyi idod van, mielott a kovetkezo keres ujrairja a teljes prefixet. Ha a cache kihult, halvany `💾 cold` latszik helyette. Csak a `full` profilban, es csak miutan legalabb egy keres tortent.
 
 ### PR jelzo
 
@@ -903,7 +918,9 @@ A sessionben hozzaadott/torolt sorok osszege. `±0` ha nincs valtozas.
 
 ### Rate limits (csak Pro/Max)
 
-A Claude.ai 5 oras es 7 napos rate limit hasznalatot mutatja (`📊 5h:42% 7d:87%`), ha a `rate_limits` mezo jelen van. Csak a `full` profilban. Az ertekek szinezettek: 60% alatt sima, 60–79% sarga, 80%-tol piros — igy meg a limit elerese elott feltunik, hogy kozeledsz hozza.
+A Claude.ai 5 oras es 7 napos rate limit hasznalatot mutatja (`📊 5h:42% ↻28m 7d:87% ↻2d23h`), ha a `rate_limits` mezo jelen van. Csak a `full` profilban. Az ertekek szinezettek: 60% alatt sima, 60–79% sarga, 80–94% piros, **95%-tol villogo felkover piros** — ez utobbi azt jelenti, hogy 5% alatti a maradek keret, es ez az egyetlen allapot, ami megeri a figyelemelvonast. A villogas `SGR 5`; ha a terminalod nem tamogatja, akkor is felkover pirosat lat.
+
+A szazalek az **elhasznalt** resz, nem a maradek: `5h:13%` azt jelenti, hogy 13% fogyott el, es 87% meg szabad. Az utana allo halvany `↻` visszaszamlalas azt mutatja, mennyi ido mulva fordul at az ablak es esik vissza nullara az elhasznalt resz — a `rate_limits.*.resets_at` mezobol. Ha a mezo hianyzik (regebbi Claude Code) vagy mar a multban van, a visszaszamlalas elmarad — egy elavult reset-ido rosszabb, mint a semmi. Pontos szamokhoz es idopontokhoz a Claude Code beepitett `/usage` parancsa valo.
 
 ### Worktree es agent jelzok
 
@@ -958,8 +975,8 @@ A fast mode, az effort szint, a prompt-cache statisztika es a nyitott PR kozvetl
 | (Xk/Xk) | Tokenek (hasznalt/osszes) | `used_percentage * context_window_size` / `context_window_size` |
 | ⏱ | Session idotartam | `cost.total_duration_ms` — formatum: Xs, XmXs, vagy XhXm |
 | 📡 N | API hivasok szama | `"type":"assistant"` bejegyzesek szama a transcript JSONL-ben |
-| 💾 X% / cold | Prompt cache | `prompt_cache.hit_ratio` × 100 — 🟢 ≥80%, 🟡 ≥50%, 🔴 alatta; halvany `cold`, ha a `prompt_cache.warm` false (full profil) |
-| 📊 5h:X% 7d:Y% | Rate limits | `rate_limits.five_hour` / `rate_limits.seven_day` — csak Pro/Max, ertekenkent szinezve: 🟡 ≥60%, 🔴 ≥80% (full profil) |
+| 💾 X% ↻ / cold | Prompt cache | `prompt_cache.hit_ratio` × 100 — 🟢 ≥80%, 🟡 ≥50%, 🔴 alatta; halvany `↻` = hatralevo TTL az `expires_at`-bol; halvany `cold`, ha a `prompt_cache.warm` false (full profil) |
+| 📊 5h:X% ↻ 7d:Y% ↻ | Rate limits | `rate_limits.five_hour` / `rate_limits.seven_day` — elhasznalt arany, csak Pro/Max, ertekenkent szinezve: 🟡 ≥60%, 🔴 ≥80%, 🔴✨ villogo ≥95%; halvany `↻` = ido a `resets_at`-ig (full profil) |
 | +X/-Y | Sorok valtozasa | `cost.total_lines_added` / `cost.total_lines_removed` — zold/piros |
 | 🌿 | Git branch | `git branch --show-current`, `*` = nem commitolt valtozasok |
 | 🔀 #N / !N | Nyitott PR / MR | `pr.number` (+ `pr.kind` = `mr` → `!`), a `pr.review_state` szerint szinezve: 🟢 approved, 🔴 changes_requested, halvany draft (full profil) |

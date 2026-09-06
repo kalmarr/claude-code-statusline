@@ -4,8 +4,8 @@
 # https://github.com/kalmarr/claude-code-statusline
 #
 # Shows: Model, Effort Level, Permission Mode, Cost, Context Window, Duration,
-#        API Calls, Fast Mode, Prompt Cache, PR, Lines Changed, Git Branch,
-#        Project Folder, and more.
+#        API Calls, Fast Mode, Prompt Cache, Rate Limits (with reset countdown),
+#        PR, Lines Changed, Git Branch, Project Folder, and more.
 #
 # Config via env vars:
 #   DEBUG=1                       Save raw JSON input to ~/.claude/debug_status.json
@@ -21,7 +21,7 @@
 # Force C locale for consistent number formatting
 export LC_ALL=C
 
-STATUSLINE_VERSION="0.4.0"
+STATUSLINE_VERSION="0.5.0"
 
 # --version: print version and exit — must run before reading stdin,
 # so it works from a plain shell without piped input.
@@ -63,11 +63,14 @@ eval "$(echo "$data" | jq -r '
   @sh "exceeds_200k=\(.exceeds_200k_tokens // false)",
   @sh "rate_5h=\(.rate_limits.five_hour.used_percentage // "")",
   @sh "rate_7d=\(.rate_limits.seven_day.used_percentage // "")",
+  @sh "rate_5h_reset=\(.rate_limits.five_hour.resets_at // "")",
+  @sh "rate_7d_reset=\(.rate_limits.seven_day.resets_at // "")",
   @sh "fast_mode=\(.fast_mode // false)",
   @sh "effort=\(.effort.level // "")",
   @sh "cache_warm=\(.prompt_cache.warm // "")",
   @sh "cache_hit=\(if .prompt_cache.hit_ratio == null then "" else (.prompt_cache.hit_ratio * 100 | round) end)",
   @sh "cache_req=\(.prompt_cache.requests // 0)",
+  @sh "cache_expires=\(.prompt_cache.expires_at // "")",
   @sh "pr_number=\(.pr.number // "")",
   @sh "pr_state=\(.pr.review_state // "")",
   @sh "pr_kind=\(.pr.kind // "")"
@@ -224,11 +227,32 @@ ccv_info=""
 cache_info=""
 pr_info=""
 
-# Rate-limit % coloring: red ≥80, yellow ≥60, plain below
+# Rate-limit % coloring. The value is the share *used*, so the thresholds run
+# upward: ≥95 (under 5% of the quota left) blinking bold red — the one state
+# worth interrupting you for — then red ≥80, yellow ≥60, plain below.
+# Blink is SGR 5; terminals that ignore it still show the bold red.
 rl_pct() {
-    if [ "$1" -ge 80 ]; then printf '\033[31m%d%%\033[0m' "$1"
+    if [ "$1" -ge 95 ]; then printf '\033[5;1;31m%d%%\033[0m' "$1"
+    elif [ "$1" -ge 80 ]; then printf '\033[31m%d%%\033[0m' "$1"
     elif [ "$1" -ge 60 ]; then printf '\033[33m%d%%\033[0m' "$1"
     else printf '%d%%' "$1"; fi
+}
+
+# Countdown to a unix timestamp, rendered dim: " ↻2d23h" / " ↻4h12m" / " ↻28m".
+# ↻ is U+21BB, which DejaVu Sans Mono and the usual terminal fonts cover — U+27F3
+# (⟳) looks nicer but is missing from most monospace fonts and renders as tofu.
+# Prints nothing when the field is absent (older Claude Code), non-numeric, or
+# already in the past — a stale timestamp is worse than no timestamp.
+now_ts=$(printf '%(%s)T' -1 2>/dev/null)
+[ -z "$now_ts" ] && now_ts=$(date +%s)
+until_str() {
+    case "$1" in ''|*[!0-9]*) return ;; esac
+    local left=$(( $1 - now_ts ))
+    [ "$left" -le 0 ] && return
+    if   [ "$left" -ge 86400 ]; then printf ' \033[90m↻%dd%dh\033[0m' $((left/86400)) $(((left%86400)/3600))
+    elif [ "$left" -ge 3600 ];  then printf ' \033[90m↻%dh%dm\033[0m' $((left/3600))  $(((left%3600)/60))
+    elif [ "$left" -ge 60 ];    then printf ' \033[90m↻%dm\033[0m'    $((left/60))
+    else                             printf ' \033[90m↻<1m\033[0m'; fi
 }
 
 # Prompt-cache hit-ratio coloring (inverse of rl_pct): green ≥80, yellow ≥50, red below
@@ -257,9 +281,11 @@ if [ "$STATUSLINE_PROFILE" = "full" ]; then
         fi
     fi
 
+    # Percentages are *used*, not remaining; the ↻ countdown says when the
+    # window rolls over and the used share drops back to zero.
     rl_parts=""
-    [ -n "$rate_5h" ] && rl_parts="5h:$(rl_pct "$(printf '%.0f' "$rate_5h")")"
-    [ -n "$rate_7d" ] && rl_parts="${rl_parts:+$rl_parts }7d:$(rl_pct "$(printf '%.0f' "$rate_7d")")"
+    [ -n "$rate_5h" ] && rl_parts="5h:$(rl_pct "$(printf '%.0f' "$rate_5h")")$(until_str "$rate_5h_reset")"
+    [ -n "$rate_7d" ] && rl_parts="${rl_parts:+$rl_parts }7d:$(rl_pct "$(printf '%.0f' "$rate_7d")")$(until_str "$rate_7d_reset")"
     [ -n "$rl_parts" ] && rate_info="📊 ${rl_parts}"
 
     # Claude Code version — dim gray so it doesn't compete for attention
@@ -269,7 +295,8 @@ if [ "$STATUSLINE_PROFILE" = "full" ]; then
     # has expired (1h TTL) — the next request will re-write the whole prefix.
     if [ -n "$cache_hit" ] && [ "${cache_req:-0}" -gt 0 ]; then
         if [ "$cache_warm" = "true" ]; then
-            cache_info="💾 $(cache_pct "$cache_hit")"   # cache_hit is already 0–100 (rounded in jq)
+            # cache_hit is already 0–100 (rounded in jq); ↻ is the TTL left
+            cache_info="💾 $(cache_pct "$cache_hit")$(until_str "$cache_expires")"
         else
             cache_info="\033[90m💾 cold\033[0m"
         fi

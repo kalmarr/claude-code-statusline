@@ -3,6 +3,35 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0]
+
+Makes the quota segments answer the question they were silently raising: *how
+much is left, and until when?* Claude Code 2.1.259 ships `resets_at` and
+`expires_at` timestamps that the statusline was not reading.
+
+### Added
+- **Rate-limit reset countdown** — `📊 5h:13% ↻28m 7d:25% ↻2d23h`. The dim `↻`
+  is the time until that window rolls over, from
+  `rate_limits.{five_hour,seven_day}.resets_at`. Format adapts to the distance:
+  `2d23h` / `4h12m` / `28m` / `<1m`. Silent when the field is absent (older
+  Claude Code) or already in the past — a stale reset time is worse than none.
+- **Prompt-cache TTL countdown** — `💾 99% ↻58m` from `prompt_cache.expires_at`:
+  how long before the cache goes cold and the next request re-writes the whole
+  prefix. Not shown on an already-cold cache, which keeps its dim `💾 cold`.
+- **Blinking red rate limit at ≥95% used** — under 5% of the window left is the
+  one state worth interrupting for, so it blinks (`SGR 5`) in bold red instead
+  of sharing the plain red of the 80–94% band. Terminals that ignore blink
+  still show the bold red.
+
+### Changed
+- The `📊` docs now state explicitly that the percentage is the share **used**,
+  not the share remaining (`5h:13%` = 13% consumed, 87% still available) — the
+  most common misreading of the segment.
+
+### Notes
+- Timestamps are compared against `printf '%(%s)T'` with a `date +%s` fallback,
+  so no extra process is forked per render on bash 4.2+.
+
 ## [0.4.0]
 
 Adapts the statusline to the Claude Code stdin fields that arrived with the
