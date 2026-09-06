@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.1]
+
+### Changed
+- **Prompt-cache icon is now `♻️` instead of `💾`.** A floppy disk means
+  *saving to storage*, which is not what the segment reports — the cache is
+  about **re-using** tokens already sent, so the recycling symbol matches the
+  meaning. Colors, thresholds, the `↻` TTL countdown and the dim `♻️ cold`
+  state are unchanged.
+
 ## [0.5.0]
 
 Makes the quota segments answer the question they were silently raising: *how

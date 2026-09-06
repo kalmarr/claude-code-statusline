@@ -21,7 +21,7 @@
 # Force C locale for consistent number formatting
 export LC_ALL=C
 
-STATUSLINE_VERSION="0.5.0"
+STATUSLINE_VERSION="0.5.1"
 
 # --version: print version and exit — must run before reading stdin,
 # so it works from a plain shell without piped input.
@@ -296,9 +296,9 @@ if [ "$STATUSLINE_PROFILE" = "full" ]; then
     if [ -n "$cache_hit" ] && [ "${cache_req:-0}" -gt 0 ]; then
         if [ "$cache_warm" = "true" ]; then
             # cache_hit is already 0–100 (rounded in jq); ↻ is the TTL left
-            cache_info="💾 $(cache_pct "$cache_hit")$(until_str "$cache_expires")"
+            cache_info="♻️ $(cache_pct "$cache_hit")$(until_str "$cache_expires")"
         else
-            cache_info="\033[90m💾 cold\033[0m"
+            cache_info="\033[90m♻️ cold\033[0m"
         fi
     fi
 
